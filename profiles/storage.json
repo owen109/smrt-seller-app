@@ -1,0 +1,425 @@
+{
+  "cookies": [
+    {
+      "name": "everest_g_v2",
+      "value": "g_surferid~Z6Vg3wAAAKkckwN_",
+      "domain": ".everesttech.net",
+      "path": "/",
+      "expires": 1770427487,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "None"
+    },
+    {
+      "name": "everest_session_v2",
+      "value": "\"Z6Vg3wAAAKkclAN@\"",
+      "domain": ".everesttech.net",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "None"
+    },
+    {
+      "name": "cwr_u",
+      "value": "fe61329d-aab9-4a30-92af-cac94e0f41a3",
+      "domain": ".sellercentral.amazon.com",
+      "path": "/",
+      "expires": 1741483486,
+      "httpOnly": false,
+      "secure": true,
+      "sameSite": "Strict"
+    },
+    {
+      "name": "ld",
+      "value": "SCUSWPDirect",
+      "domain": "sellercentral.amazon.com",
+      "path": "/",
+      "expires": 1740187486,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "None"
+    },
+    {
+      "name": "AMCVS_A7493BC75245ACD20A490D4D%40AdobeOrg",
+      "value": "1",
+      "domain": ".amazon.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "None"
+    },
+    {
+      "name": "s_tbm",
+      "value": "true",
+      "domain": ".sellercentral.amazon.com",
+      "path": "/",
+      "expires": 1738893287,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "None"
+    },
+    {
+      "name": "s_ips",
+      "value": "720",
+      "domain": ".sellercentral.amazon.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "None"
+    },
+    {
+      "name": "s_tp",
+      "value": "2749",
+      "domain": ".sellercentral.amazon.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "None"
+    },
+    {
+      "name": "s_ppv",
+      "value": "US%253ASD%253ASC-WP%2C26%2C26%2C720%2C1%2C3",
+      "domain": ".sellercentral.amazon.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "None"
+    },
+    {
+      "name": "ttc",
+      "value": "1738891487397",
+      "domain": ".sellercentral.amazon.com",
+      "path": "/",
+      "expires": 1741483487,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "None"
+    },
+    {
+      "name": "s_cc",
+      "value": "true",
+      "domain": ".sellercentral.amazon.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "None"
+    },
+    {
+      "name": "AMCV_A7493BC75245ACD20A490D4D%40AdobeOrg",
+      "value": "1585540135%7CMCIDTS%7C20127%7CMCMID%7C11474886637828350214455101534134607340%7CMCAAMLH-1739496287%7C7%7CMCAAMB-1739496287%7CRKhpRz8krg2tLO6pguXWp5olkAcUniQYPHaMWWgdJ3xzPWQmdj0y%7CMCOPTOUT-1738898687s%7CNONE%7CMCAID%7CNONE%7CMCSYNCSOP%7C411-20134%7CvVersion%7C4.4.0",
+      "domain": ".amazon.com",
+      "path": "/",
+      "expires": 1773451487,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "None"
+    },
+    {
+      "name": "gpv_pn",
+      "value": "US%3ASD%3ASC-WP",
+      "domain": ".sellercentral.amazon.com",
+      "path": "/",
+      "expires": 1738893288,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "None"
+    },
+    {
+      "name": "s_ev15",
+      "value": "%5B%5B%27SCUSWPDirect%27%2C%271738891488087%27%5D%5D",
+      "domain": ".sellercentral.amazon.com",
+      "path": "/",
+      "expires": 1773451488,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "None"
+    },
+    {
+      "name": "s_sq",
+      "value": "amznsrvsglobalprod%252Camznsrvsmainprod%252Camznsrvsprod%252Camznsrvsglobalprodbotfilter%3D%2526c.%2526a.%2526activitymap.%2526page%253DUS%25253ASD%25253ASC-WP%2526link%253DLog%252520in%2526region%253Dlogin%2526pageIDType%253D1%2526.activitymap%2526.a%2526.c%2526pid%253DUS%25253ASD%25253ASC-WP%2526pidt%253D1%2526oid%253Dhttps%25253A%25252F%25252Fsellercentral.amazon.com%25252Fsignin%25253Fref_%25253Dscus_soa_wp_signin_n%252526initialSessionID%25253D139-2702129-69274%2526ot%253DA",
+      "domain": ".sellercentral.amazon.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "None"
+    },
+    {
+      "name": "cwr_s",
+      "value": "eyJzZXNzaW9uSWQiOiJiMDk4YzU2Ni1hNDE3LTQ0Y2EtOTA5OS1iMTY1YmQwODMzMzUiLCJyZWNvcmQiOnRydWUsImV2ZW50Q291bnQiOjMxLCJwYWdlIjp7InBhZ2VJZCI6Ii8iLCJpbnRlcmFjdGlvbiI6MCwicmVmZXJyZXIiOiIiLCJyZWZlcnJlckRvbWFpbiI6IiIsInN0YXJ0IjoxNzM4ODkxNDg2NzM0fX0=",
+      "domain": ".sellercentral.amazon.com",
+      "path": "/",
+      "expires": 1738893288,
+      "httpOnly": false,
+      "secure": true,
+      "sameSite": "Strict"
+    },
+    {
+      "name": "signin-sso-state-us",
+      "value": "313da977-8bc3-4a48-9bd3-19326423b96c",
+      "domain": ".amazon.com",
+      "path": "/ap/",
+      "expires": 1770427488,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "id_pkel",
+      "value": "n0",
+      "domain": "sellercentral.amazon.com",
+      "path": "/",
+      "expires": 1738892396,
+      "httpOnly": false,
+      "secure": true,
+      "sameSite": "Strict"
+    },
+    {
+      "name": "id_pk",
+      "value": "eyJuIjoiMCJ9",
+      "domain": "sellercentral.amazon.com",
+      "path": "/",
+      "expires": 1738892396,
+      "httpOnly": false,
+      "secure": true,
+      "sameSite": "Strict"
+    },
+    {
+      "name": "csm-hit",
+      "value": "tb:8ND3VAYABADN2CYMH5BT+s-SF3PGHKMYGGXVGTJGCR3|1738891502925&t:1738891502925&adb:adblk_no",
+      "domain": "sellercentral.amazon.com",
+      "path": "/",
+      "expires": 1769131502,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "None"
+    },
+    {
+      "name": "JSESSIONID",
+      "value": "2E59021D384ECE257B01601BB2A83ECD",
+      "domain": "sellercentral.amazon.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "sid",
+      "value": "\"NtU3dYEm8HMU3wFlJGbXrQ==|QDP6HZNIqc3MEBB1IITZy6H/a4bafzrEpjWH7pAu4iw=\"",
+      "domain": ".amazon.com",
+      "path": "/",
+      "expires": 1770427513,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "session-id",
+      "value": "139-2702129-6927426",
+      "domain": ".amazon.com",
+      "path": "/",
+      "expires": 1770427513,
+      "httpOnly": false,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "session-id-time",
+      "value": "2369611513l",
+      "domain": ".amazon.com",
+      "path": "/",
+      "expires": 1770427513,
+      "httpOnly": false,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "ubid-main",
+      "value": "132-0296260-8529020",
+      "domain": ".amazon.com",
+      "path": "/",
+      "expires": 1770427513,
+      "httpOnly": false,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "session-token",
+      "value": "\"eBg0KaItMeoFopldtiWeEpyYaC+5pqZedE3BRKn1nf3u7/dbeOLSKJh61wVOWW4VpXC4MFUh3JNkSvotvYfcUaWVcPAGfwPTD9P5r5Jfn9e5PSYBHpiZGKy602NVlCnGg5Qc4ivlPQXygb0eekxybX/mU+R19T3JJ1mhcfFdXzBe/FuXne+uh/wz7oVWBuJMftNWjAaiECPaLOhM33LTSer5+nkwB52/6ByqZcgYXveEP50sFYKUyhthmOUUbKAnNbOcGLt8yP+v1md08wZ1Veg/oIJnSh3D/NhTPfnkWEc9zG/w9geMeUYM+XnwyePAZOHJQ6aXNUIxlfzqgafVeBKKrTpEQxUsB2PDpPxJ3B1vn561l1wPEg==\"",
+      "domain": ".amazon.com",
+      "path": "/",
+      "expires": 1770427513,
+      "httpOnly": false,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "x-main",
+      "value": "\"1UmKg3mvBefg?I@jrTGga1yMODRWKd0rYPDYETu60on8DQq?8qdJy8WucvRgQpZT\"",
+      "domain": ".amazon.com",
+      "path": "/",
+      "expires": 1770427513,
+      "httpOnly": false,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "at-main",
+      "value": "Atza|IwEBIOO0-SAUXubSQuAPTlQTFBDxiOpOqYj3lqxQAUsmPUZoyAa6rhoQZI3fryO54u1Xe1edvdxZ3AwaFc8Nu6oR7MTdEx_vuQ32DFnGBrmZ2vdNCGC9wxu2UuoILALv5XxbpXiwOrca9JOEOf2ewHgGaFHGhqbAKP1869gK81dhAGHmZBsoXOgN-URJARLVpixx92JioPhfI3m0_hhX5n64fj_ZA0i4WgrfW4FM9dIXF8lraNGcPZqyHsH9ea4Vyq-PaycIImEKlDOSgDk5KqIr-mGf1J8pJqk7art0augOVjrC1A",
+      "domain": ".amazon.com",
+      "path": "/",
+      "expires": 1770427513,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "sess-at-main",
+      "value": "\"9Tx/03ktUksFzy+b077bMfcnjGJIL/5nM5ohoPL8N9w=\"",
+      "domain": ".amazon.com",
+      "path": "/",
+      "expires": 1770427513,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "sst-main",
+      "value": "Sst1|PQEDrS6R0y3vnI6R7WCVTwaNCYjXMjhfQ-d7VtVL6oH3bk1no79HL860ue6MOLPd0YddhP942lQ421ZJPx8zSprBGbWnuTXR7jvwrwfLNZX89FsYsWqaLHZ7iL0j4WUCK_DtBvnCUaNw8fJ2-16w2RBGNhVoKVv-EF0fnKiXTM7-kqiOKTLs7Y_L8X1te4nbrZMSIWaGaEoEG_LGp4Hx-9ZOPoVVbbxLv97qddRLeVdu-aBSH8vRyn1rwgZzRWQtCez2KkjcNt5RxKM0ncHZBjEW-5MyG7K1Va4eePypU4kA_gM",
+      "domain": ".amazon.com",
+      "path": "/",
+      "expires": 1770427513,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "sso-cd-state",
+      "value": "eyJ6aXAiOiJERUYiLCJlbmMiOiJBMjU2R0NNIiwiYWxnIjoiQTI1NktXIn0.nvH40Nkk9QLjDJBa3rdli0cN5xTQYwxN6qt4UKqj87GFpzcQHQKdJg.VVM7gRiQA6r_CFBV.9tTl17Qw19Yg9WiP_C4Rr3xnkcCDYXx0Wur0pfrLazf5hGPpOrnw3uRBbYpuVsgT_tVX1zI5h-YjlxvCNYaFi6kDvPPLmy1AHGCzOwcgLwttXbPmYHoul9zDieNowFPkpfq8_sQoL2ddkNG6tlXyVZC-ybB8lL3HGgEcRaHnMOe83GpPH6e-Ep3mZ102YJXUlZVJ2CldZVdq5D4bWCl0AITfrv0XOHpj21ATnt0yX971OHVwvEsANTtp8TPARvGETNhZTdll9yfo0Sb8U_W_kzqS6ty5_U4Y79zVdtE2uNsZ611CBBqhSX5TU3Tz2tdtvQLojNV72-0XvN6-XSkVaF3-y_x6hZxpGxDE7b8EAdI8YTs9JoAU_tfPm8M4kp0B2QozN_EfIxDfTHQur8z9VuKVyN2R4HjYC2FW7Ma0Eb8I-Nf_koO0TRfhPc88gaWaOjpIdhVVE1nXsHCMqgPWr4e257_38wyPMHx-xsHygHQL1IfQytv0mQ1Sg-2-dcwFEJapu804iJONMIQOeqDv5pG8cuZPxTT9UqJPG-HQ097x_NCpyYW0pBSNk4s-ki4f4pCzMXg4uTVGEtIv7iHt0zDxB5KxiOe8TqYBZlINvaMgNDwoaUdQ_scJ5UktUSwo.noOP4F3cc-P72-xxanVyBg",
+      "domain": ".account.amazon.com",
+      "path": "/",
+      "expires": 1740101113,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "__Host-mselc",
+      "value": "H4sIAAAAAAAA/6tWSs5MUbJSSsytyjPUS0xOzi/NK9HLT85M0XP0NQtxDXP0ijSMcDNS0lHKRVKYm1qUnJEIUqnnaBTiYeLl62RkGBUZGQhSl42ssACkJCQswMXb0zvCwMU1SElHqQBJQUEiSIFhYKBTkLund7C3qbOHUi0ASTudD5YAAAA=",
+      "domain": "sellercentral.amazon.com",
+      "path": "/",
+      "expires": 1770427517,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "ph_phc_tGCcl9SINhy3N0zy98fdlWrc1ppQ67KJ8pZMzVZOECH_posthog",
+      "value": "%7B%22distinct_id%22%3A%22amzn1.account.ocid.AM6TEVAJY1XF2%22%2C%22%24sesid%22%3A%5B1738891519513%2C%220194de02-d09c-7f2a-b465-6c959df26d15%22%2C1738891514012%5D%2C%22%24epp%22%3Atrue%7D",
+      "domain": ".amazon.com",
+      "path": "/",
+      "expires": 1770427519,
+      "httpOnly": false,
+      "secure": true,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "demdex",
+      "value": "04042220769708137574009070323180967836",
+      "domain": ".demdex.net",
+      "path": "/",
+      "expires": 1754443487,
+      "httpOnly": false,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "dpm",
+      "value": "04042220769708137574009070323180967836",
+      "domain": ".dpm.demdex.net",
+      "path": "/",
+      "expires": 1754443487,
+      "httpOnly": false,
+      "secure": true,
+      "sameSite": "None"
+    }
+  ],
+  "origins": [
+    {
+      "origin": "https://sellercentral.amazon.com",
+      "localStorage": [
+        {
+          "name": "a-font-class",
+          "value": "a-ember"
+        },
+        {
+          "name": "csa-ctoken-13711MM8NQC9BH55W80W",
+          "value": "1738895088723"
+        },
+        {
+          "name": "csm:adb",
+          "value": "adblk_no"
+        },
+        {
+          "name": "fonts-loaded",
+          "value": "1"
+        },
+        {
+          "name": "csa-ctoken-SF3PGHKMYGGXVGTJGCR3",
+          "value": "1738895100518"
+        },
+        {
+          "name": "csa-ctoken-0P1W4SM3BNTZ27G0STZE",
+          "value": "1738895117891"
+        },
+        {
+          "name": "csa-ctoken-8ND3VAYABADN2CYMH5BT",
+          "value": "1738895086757"
+        },
+        {
+          "name": "csa-tabbed-browsing",
+          "value": "{\"lastActive\":{\"visible\":false,\"pid\":\"8hjx0d-dv404q-y9ujol-2dnlo4\",\"tid\":\"fx42u6-hhimdz-o4pf8n-4hz3if\",\"ent\":{\"rid\":\"0P1W4SM3BNTZ27G0STZE\",\"ety\":\"MarketplaceHomepage\",\"esty\":\"SANTOS-B2B-AMAZON_DISTRIBUTION-FBA-LENDING_ELIGIBILITY-SILVER-TRIGGER_BAP-CSBA_ACTIVE-SP_INDIVIDUAL-GREX\"}},\"lastInteraction\":{\"id\":\"w898ul-s9uf2t-ubo6ob-q5k9kn\",\"used\":true},\"time\":1738891517891,\"initialized\":true}"
+        },
+        {
+          "name": "csm-hit",
+          "value": "tb:8ND3VAYABADN2CYMH5BT+s-SF3PGHKMYGGXVGTJGCR3|1738891502925&t:1738891502925&adb:adblk_no"
+        },
+        {
+          "name": "csm-bf",
+          "value": "[\"0P1W4SM3BNTZ27G0STZE\",\"8RS9ETJMDX9GWBVKG53C\",\"SF3PGHKMYGGXVGTJGCR3\",\"HB26AHYMWJ918QSD6Q0Q\",\"13711MM8NQC9BH55W80W\",\"8ND3VAYABADN2CYMH5BT\"]"
+        },
+        {
+          "name": "sc.trim.fav.hide",
+          "value": "true"
+        },
+        {
+          "name": "vibes-cache:targeting",
+          "value": "{\"value\":\"{\\\"name\\\":null,\\\"sample_rate\\\":0}\",\"exp\":1738977914704}"
+        },
+        {
+          "name": "ph_phc_tGCcl9SINhy3N0zy98fdlWrc1ppQ67KJ8pZMzVZOECH_posthog",
+          "value": "{\"distinct_id\":\"amzn1.account.ocid.AM6TEVAJY1XF2\",\"$sesid\":[1738891519513,\"0194de02-d09c-7f2a-b465-6c959df26d15\",1738891514012],\"$user_state\":\"identified\",\"$device_id\":\"0194de02-6632-706d-ba99-544e6227d37d\",\"$capture_rate_limit\":{\"tokens\":98.35,\"last\":1738891519513},\"$initial_person_info\":{\"r\":\"https://sellercentral.amazon.com/\",\"u\":\"https://sellercentral.amazon.com/account-switcher/default/merchantMarketplace?returnTo=%2Fhome\"},\"$client_session_props\":{\"sessionId\":\"0194de02-d09c-7f2a-b465-6c959df26d15\",\"props\":{\"initialPathName\":\"/account-switcher/default/merchantMarketplace\",\"referringDomain\":\"sellercentral.amazon.com\"}},\"$active_feature_flags\":[\"tricorder-customer\"],\"$enabled_feature_flags\":{\"tricorder-customer\":\"amzn1.account.ocid.AM6TEVAJY1XF2\"},\"$feature_flag_payloads\":{},\"$session_recording_enabled_server_side\":false,\"$session_recording_network_payload_capture\":{\"capturePerformance\":true},\"$session_recording_canvas_recording\":{},\"$replay_sample_rate\":null,\"$replay_minimum_duration\":null,\"$autocapture_disabled_server_side\":false,\"$heatmaps_enabled_server_side\":true,\"$web_vitals_enabled_server_side\":false,\"$exception_capture_enabled_server_side\":false,\"$exception_capture_endpoint\":\"/e/\",\"$epp\":true,\"$user_id\":\"amzn1.account.ocid.AM6TEVAJY1XF2\",\"$stored_person_properties\":{}}"
+        },
+        {
+          "name": "amznfbgid",
+          "value": "X44-8597131-6262761:1738891491"
+        },
+        {
+          "name": "csa-ctoken-8RS9ETJMDX9GWBVKG53C",
+          "value": "1738895113979"
+        },
+        {
+          "name": "csa-ctoken-HB26AHYMWJ918QSD6Q0Q",
+          "value": "1738895096736"
+        }
+      ]
+    }
+  ]
+}

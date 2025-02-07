@@ -1,0 +1,283 @@
+header {
+  width: 100%;
+  text-align: left;
+  padding: 0.5rem;
+  box-sizing: border-box;
+  background-color: #0495F6;
+  -webkit-app-region: drag;
+}
+
+header button {
+  all: unset;
+  border-radius: 50%;
+  width: 1rem;
+  height: 1rem;
+  margin: 0.25rem;
+  -webkit-app-region: no-drag;
+}
+
+#close {
+  background-color: red;
+}
+
+#minimize {
+  background-color: yellow;
+}
+
+#maximize {
+  background-color: lime;
+}
+
+.App {
+  height: 100vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.main {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  padding: 2rem;
+  text-align: center;
+  height: calc(100vh - 2.5rem); /* Adjusted for header height */
+  background-color: white;
+  overflow: hidden;
+  position: relative;
+}
+
+.main h2 {
+  font-size: 1.5rem;
+  margin-bottom: 0.5rem;
+  color: #333;
+  flex-shrink: 0;
+}
+
+.main p {
+  color: #666;
+  margin-bottom: 1rem;
+  max-width: 600px;
+  flex-shrink: 0;
+}
+
+.setup-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  text-align: center;
+  height: calc(100vh - 4rem);
+  background-color: white;
+}
+
+.setup-container h2 {
+  font-size: 2rem;
+  margin-bottom: 1rem;
+  color: #333;
+}
+
+.setup-container p {
+  color: #666;
+  margin-bottom: 2rem;
+  max-width: 600px;
+}
+
+.setup-button {
+  background-color: #0495F6;
+  color: white;
+  border: none;
+  padding: 1rem 2rem;
+  font-size: 1.2rem;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.setup-button:hover:not(:disabled) {
+  background-color: #0378cc;
+}
+
+.setup-button:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
+}
+
+.setup-button.complete {
+  background-color: #0495F6;
+  margin-top: 1rem;
+}
+
+.setup-button.complete:hover {
+  background-color: #0378cc;
+}
+
+.setup-info {
+  margin-top: 1rem;
+  color: #0495F6 !important;
+  font-size: 0.9rem;
+}
+
+.automation-list {
+  width: 100%;
+  max-width: 600px;
+  margin-top: 1rem;
+  overflow-y: auto;
+  flex: 1;
+  padding-right: 1rem;
+  padding-bottom: 1rem;
+  scrollbar-width: thin;
+  &::-webkit-scrollbar {
+    width: 8px;
+  }
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  &::-webkit-scrollbar-thumb {
+    background-color: rgba(0, 0, 0, 0.2);
+    border-radius: 4px;
+  }
+}
+
+.automation-item {
+  background-color: white;
+  border: 1px solid #eee;
+  border-radius: 0.5rem;
+  padding: 0.75rem;
+  margin-bottom: 0.75rem;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.automation-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.automation-title {
+  font-weight: 500;
+  color: #333;
+  font-size: 0.9rem;
+}
+
+.automation-status {
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 0.2rem 0.4rem;
+  border-radius: 0.25rem;
+  text-transform: uppercase;
+}
+
+.automation-status.running {
+  background-color: #0495F6;
+  color: white;
+}
+
+.automation-status.completed {
+  background-color: #1ACF4D;
+  color: white;
+}
+
+.automation-status.error {
+  background-color: #FF4D4D;
+  color: white;
+}
+
+.progress-container {
+  width: 100%;
+  height: 0.25rem;
+  background-color: #eee;
+  border-radius: 0.125rem;
+  overflow: hidden;
+  margin: 0.5rem 0;
+}
+
+.progress-bar {
+  height: 100%;
+  background-color: #0495F6;
+  transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.automation-message {
+  font-size: 0.8rem;
+  color: #666;
+  margin: 0.25rem 0 0 0;
+  line-height: 1.2;
+}
+
+.printer-settings {
+  width: 100%;
+  max-width: 600px;
+  margin: 1rem 0;
+  padding: 0.5rem 1rem;
+  background-color: white;
+  border: 1px solid #eee;
+  border-radius: 0.5rem;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.printer-controls {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.printer-label {
+  font-size: 0.9rem;
+  color: #666;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.printer-select {
+  flex: 1;
+  padding: 0.5rem;
+  border: 1px solid #ddd;
+  border-radius: 0.25rem;
+  font-size: 0.9rem;
+  min-width: 150px;
+  background-color: white;
+  color: #333;
+  appearance: auto;
+  -webkit-appearance: auto;
+  outline: none !important;
+}
+
+.printer-select:focus {
+  outline: none !important;
+  border-color: #ddd;
+  box-shadow: none;
+  
+}
+
+.print-button {
+  background: none;
+  border: none;
+  color: #0495F6;
+  font-size: 0.9rem;
+  cursor: pointer;
+  padding: 0.5rem;
+  border-radius: 0.25rem;
+  white-space: nowrap;
+  transition: background-color 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.print-button:hover:not(:disabled) {
+  background-color: rgba(4, 149, 246, 0.1);
+}
+
+.print-button:disabled {
+  color: #ccc;
+  cursor: not-allowed;
+}
+
+.print-icon {
+  width: 16px;
+  height: 16px;
+}
