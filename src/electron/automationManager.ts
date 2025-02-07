@@ -7,6 +7,8 @@ import { BrowserWindow } from 'electron';
 import fs from 'fs/promises';
 import { generateLabel } from './labelGenerator.js';
 import { print, isPrintComplete } from 'unix-print';
+import { dialog } from 'electron';
+import { ipcMain } from 'electron';
 
 // Create a logging utility
 const log = {
@@ -45,14 +47,24 @@ type RunningAutomation = {
         fnsku?: string;
         error?: string;
     };
+    timeoutId?: NodeJS.Timeout;
+}
+
+type PendingAutomation = {
+    request: AutomationRequest;
+    startTime: number;
+    retryCount: number;
 }
 
 class AutomationManager {
     private runningAutomations: Map<string, RunningAutomation> = new Map();
+    private pendingAutomations: PendingAutomation[] = [];
     private mainWindow: BrowserWindow;
     private profilesPath: string;
     private configPath: string;
-    private printerName: string = '';  // Default to empty string
+    private printerName: string = '';
+    private isReauthenticating: boolean = false;
+    private authBrowser: Browser | null = null;
 
     constructor(mainWindow: BrowserWindow) {
         this.mainWindow = mainWindow;
@@ -218,6 +230,11 @@ class AutomationManager {
         if (automation) {
             log.info('Cleaning up automation', { id });
             try {
+                // Clear the timeout if it exists
+                if (automation.timeoutId) {
+                    clearTimeout(automation.timeoutId);
+                }
+
                 if (!automation.browser.isConnected()) {
                     log.info('Browser already disconnected', { id });
                     this.runningAutomations.delete(id);
@@ -238,17 +255,51 @@ class AutomationManager {
     }
 
     // Add a timeout to automations
-    private setupAutomationTimeout(automation: RunningAutomation, timeoutMs: number = 5 * 60 * 1000) {
-        setTimeout(async () => {
-            if (this.runningAutomations.has(automation.id)) {
-                log.error('Automation timed out', { id: automation.id });
+    private setupAutomationTimeout(automation: RunningAutomation, timeoutMs: number = 15 * 60 * 1000) { // Increased to 15 minutes
+        let timeoutId: NodeJS.Timeout;
+        let startTime = Date.now();
+        let pausedAt: number | null = null;
+
+        const checkTimeout = async () => {
+            // If we're re-authenticating, pause the timeout
+            if (this.isReauthenticating) {
+                if (!pausedAt) pausedAt = Date.now();
+                return;
+            }
+
+            // If we were paused, adjust the start time
+            if (pausedAt) {
+                const pauseDuration = Date.now() - pausedAt;
+                startTime += pauseDuration;
+                pausedAt = null;
+            }
+
+            const elapsedTime = Date.now() - startTime;
+            if (elapsedTime >= timeoutMs && this.runningAutomations.has(automation.id)) {
+                log.error('Automation timed out', { 
+                    id: automation.id,
+                    elapsedTime: `${Math.round(elapsedTime / 1000)}s`,
+                    timeoutLimit: `${Math.round(timeoutMs / 1000)}s`
+                });
+                
                 this.updateAutomationStatus(automation, {
                     status: 'error',
-                    message: 'Automation timed out'
+                    message: `Automation timed out after ${Math.round(elapsedTime / 1000)} seconds`
                 });
+                
                 await this.cleanupAutomation(automation.id);
+                return;
             }
-        }, timeoutMs);
+
+            // Check again in 1 second
+            timeoutId = setTimeout(checkTimeout, 1000);
+        };
+
+        // Start the timeout checker
+        timeoutId = setTimeout(checkTimeout, 1000);
+
+        // Store the timeout ID in the automation for cleanup
+        automation.timeoutId = timeoutId;
     }
 
     async getCurrentSetupId(): Promise<string> {
@@ -298,17 +349,284 @@ class AutomationManager {
         }
     }
 
+    private async handleLoginRequired() {
+        if (this.isReauthenticating) return; // Already handling reauth
+        this.isReauthenticating = true;
+
+        try {
+            // Close all running automations that need re-auth
+            for (const [id, automation] of this.runningAutomations.entries()) {
+                if (automation.page.url().includes('signin')) {
+                    await this.cleanupAutomation(id);
+                }
+            }
+
+            // Create popup window
+            const popup = new BrowserWindow({
+                width: 400,
+                height: 200,
+                frame: false,
+                resizable: false,
+                alwaysOnTop: true,
+                skipTaskbar: false,
+                webPreferences: {
+                    nodeIntegration: true,
+                    contextIsolation: false,
+                    webSecurity: false
+                },
+                backgroundColor: '#ffffff',
+                show: false
+            });
+
+            // Position window in center of screen
+            popup.center();
+            
+            // Show window once it's ready
+            popup.once('ready-to-show', () => {
+                popup.show();
+            });
+
+            // Load the custom HTML
+            await popup.loadFile(path.join(app.getAppPath(), 'src/ui/html/ReauthPopup.html'));
+
+            // Handle window minimize
+            ipcMain.once('minimize-reauth', () => {
+                popup.minimize();
+            });
+
+            // Wait for user response
+            return new Promise<void>((resolve, reject) => {
+                let browserLaunched = false;
+
+                ipcMain.once('reauth-response', async (_event, response) => {
+                    switch (response) {
+                        case 'login':
+                            try {
+                                browserLaunched = true;
+                                await this.startReauthentication(popup);
+                                resolve();
+                            } catch (error) {
+                                popup.close();
+                                reject(error);
+                            }
+                            break;
+                        case 'done':
+                            popup.close();
+                            resolve();
+                            break;
+                        case 'cancel':
+                            popup.close();
+                            this.pendingAutomations = [];
+                            this.isReauthenticating = false;
+                            reject(new Error('Authentication cancelled'));
+                            break;
+                    }
+                });
+
+                popup.on('closed', () => {
+                    if (this.isReauthenticating && !browserLaunched) {
+                        this.pendingAutomations = [];
+                        this.isReauthenticating = false;
+                        reject(new Error('Authentication cancelled'));
+                    }
+                });
+            });
+        } catch (error) {
+            log.error('Failed to handle login required:', error);
+            this.isReauthenticating = false;
+            throw error;
+        }
+    }
+
+    private async startReauthentication(popup: BrowserWindow) {
+        try {
+            // Launch visible browser for login
+            this.authBrowser = await firefox.launch({
+                headless: false,
+                firefoxUserPrefs: {
+                    'browser.sessionstore.resume_from_crash': false,
+                    'browser.sessionstore.max_resumed_crashes': 0
+                }
+            });
+
+            const context = await this.authBrowser.newContext({
+                userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:122.0) Gecko/20100101 Firefox/122.0',
+                viewport: { width: 1920, height: 1080 },
+                screen: { width: 1920, height: 1080 }
+            });
+
+            const page = await context.newPage();
+            
+            // Navigate to Seller Central
+            await page.goto('https://sellercentral.amazon.com/');
+
+            // Wait for user to complete login and click Done
+            const response = await new Promise<string>((resolve, reject) => {
+                ipcMain.once('reauth-response', (_event, response) => {
+                    resolve(response);
+                });
+
+                popup.on('closed', () => {
+                    reject(new Error('Window closed before completion'));
+                });
+            });
+
+            if (response === 'done') {
+                try {
+                    // Save the session
+                    await context.storageState({ 
+                        path: path.join(this.profilesPath, 'storage.json') 
+                    });
+
+                    // Close auth browser
+                    if (this.authBrowser) {
+                        await this.authBrowser.close().catch(e => log.error('Error closing auth browser:', e));
+                        this.authBrowser = null;
+                    }
+
+                    // Update config
+                    await this.saveConfig({
+                        isConfigured: true,
+                        lastLogin: new Date().toISOString()
+                    });
+
+                    // Close popup if it's still open
+                    if (!popup.isDestroyed()) {
+                        popup.close();
+                    }
+
+                    // Retry pending automations
+                    await this.retryPendingAutomations();
+                } catch (error) {
+                    log.error('Error during completion cleanup:', error);
+                    throw error;
+                }
+            } else {
+                // Ensure browser is closed on cancel
+                if (this.authBrowser) {
+                    await this.authBrowser.close().catch(e => log.error('Error closing auth browser:', e));
+                    this.authBrowser = null;
+                }
+                throw new Error('Authentication cancelled');
+            }
+
+        } catch (error) {
+            // Ensure cleanup happens even on error
+            if (this.authBrowser) {
+                await this.authBrowser.close().catch(e => log.error('Error closing auth browser:', e));
+                this.authBrowser = null;
+            }
+            
+            // Close popup if it's still open
+            if (!popup.isDestroyed()) {
+                popup.close();
+            }
+
+            log.error('Failed to start reauth:', error);
+            this.isReauthenticating = false;
+            throw error;
+        }
+    }
+
+    private async retryPendingAutomations() {
+        this.isReauthenticating = false;
+        
+        // Process all pending automations
+        const automations = [...this.pendingAutomations];
+        this.pendingAutomations = [];
+
+        // Retry each automation
+        for (const pending of automations) {
+            try {
+                // Create a new automation instance
+                const id = pending.request.type === 'createListing' ? 
+                    `${pending.request.params?.sku}-retry` : uuidv4();
+                
+                const automation = await this.createAutomation(id, pending.request);
+                this.runningAutomations.set(id, automation);
+                
+                // Run the automation
+                await this.runAutomation(automation, pending.request);
+            } catch (error) {
+                log.error('Failed to retry automation:', error);
+                // If it fails again due to auth, we might need another re-auth cycle
+                if (error instanceof Error && 
+                    (error.message.includes('Login required') || 
+                     error.message.includes('signin'))) {
+                    // Re-queue the automation and trigger another auth cycle
+                    this.pendingAutomations.push({
+                        ...pending,
+                        retryCount: (pending.retryCount || 0) + 1
+                    });
+                    if (pending.retryCount < 3) { // Limit retry attempts
+                        await this.handleLoginRequired();
+                    }
+                }
+            }
+        }
+    }
+
     async startAutomation(request: AutomationRequest): Promise<string> {
-        // Check if setup is completed
-        const setupStatus = await this.getSetupStatus();
-        if (!setupStatus.isConfigured) {
-            throw new Error('Please complete setup first');
+        // If we're re-authenticating, queue the request
+        if (this.isReauthenticating) {
+            this.pendingAutomations.push({
+                request,
+                startTime: Date.now(),
+                retryCount: 0
+            });
+            return 'pending-auth';
         }
 
         const id = uuidv4();
 
+        try {
+            const automation = await this.createAutomation(id, request);
+            this.runningAutomations.set(id, automation);
+            
+            // Set up timeout
+            this.setupAutomationTimeout(automation);
+            
+            // Start the automation and handle re-auth if needed
+            try {
+                await this.runAutomation(automation, request);
+            } catch (error: any) {
+                // Check if it's a login issue
+                if (error.message.includes('Login required') || 
+                    automation.page.url().includes('signin')) {
+                    
+                    // Clean up the current automation
+                    await this.cleanupAutomation(automation.id);
+                    
+                    // Add to pending automations
+                    this.pendingAutomations.push({
+                        request,
+                        startTime: Date.now(),
+                        retryCount: 0
+                    });
+
+                    // Handle login required - this will retry the automation after successful login
+                    await this.handleLoginRequired();
+                } else {
+                    // For non-auth errors, update status and cleanup
+                    this.updateAutomationStatus(automation, {
+                        status: 'error',
+                        message: error.message
+                    });
+                    await this.cleanupAutomation(automation.id);
+                    throw error;
+                }
+            }
+
+            return id;
+        } catch (error) {
+            log.error('Failed to start automation:', error);
+            throw error;
+        }
+    }
+
+    private async createAutomation(id: string, request: AutomationRequest): Promise<RunningAutomation> {
         const browser = await firefox.launch({
-            headless: false,
+            headless: true,
             firefoxUserPrefs: {
                 'dom.webdriver.enabled': false,
                 'privacy.trackingprotection.enabled': false,
@@ -368,7 +686,7 @@ class AutomationManager {
 
         const page = await context.newPage();
         
-        const automation: RunningAutomation = {
+        return {
             id,
             browser,
             page,
@@ -382,22 +700,6 @@ class AutomationManager {
                 }
             }
         };
-
-        this.runningAutomations.set(id, automation);
-        
-        // Set up timeout
-        this.setupAutomationTimeout(automation);
-        
-        // Start the automation in background
-        this.runAutomation(automation, request).catch((error: Error) => {
-            this.updateAutomationStatus(automation, {
-                status: 'error',
-                message: error.message
-            });
-            this.cleanupAutomation(automation.id);
-        });
-
-        return id;
     }
 
     private async runAutomation(automation: RunningAutomation, request: AutomationRequest) {
@@ -484,17 +786,13 @@ class AutomationManager {
                 timeout: 30000
             });
 
-            // Check if we're on a login page
+            // Check if we're on a login page immediately
             const isLoginPage = page.url().includes('signin') || 
                               await page.locator('input[type="password"]').count() > 0;
             
             if (isLoginPage) {
-                this.updateAutomationStatus(automation, {
-                    message: 'Login required. Please check the browser window.',
-                    progress: 30
-                });
-                // Wait for user to handle login
-                await page.waitForURL((url) => !url.toString().includes('signin'), { timeout: 300000 });
+                // Immediately throw login error to trigger re-auth flow
+                throw new Error('Login required');
             }
 
             this.updateAutomationStatus(automation, {

@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+            background-color: white;
+            overflow: hidden;
+            user-select: none;
+            -webkit-app-region: drag;
+        }
+
+        header {
+            width: 100%;
+            text-align: left;
+            padding: 0.5rem;
+            box-sizing: border-box;
+            background-color: #0495F6;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .title {
+            color: white;
+            font-size: 14px;
+            margin-left: 3rem;
+            font-weight: 500;
+        }
+
+        .window-controls {
+            display: flex;
+            gap: 0.25rem;
+            -webkit-app-region: no-drag;
+        }
+
+        .window-controls button {
+            all: unset;
+            border-radius: 50%;
+            width: 1rem;
+            height: 1rem;
+            cursor: pointer;
+        }
+
+        #close {
+            background-color: red;
+        }
+
+        #minimize {
+            background-color: yellow;
+        }
+
+        .content {
+            padding: 1.5rem;
+            text-align: center;
+        }
+
+        .message {
+            color: #333;
+            font-size: 14px;
+            margin-bottom: 1.5rem;
+            line-height: 1.4;
+        }
+
+        .buttons {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            -webkit-app-region: no-drag;
+        }
+
+        .button {
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem;
+            border: none;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .primary {
+            background-color: #0495F6;
+            color: white;
+        }
+
+        .primary:hover {
+            background-color: #0378cc;
+        }
+
+        .secondary {
+            background-color: #f5f5f5;
+            color: #333;
+        }
+
+        .secondary:hover {
+            background-color: #e5e5e5;
+        }
+
+        .state {
+            display: none;
+        }
+
+        .state.active {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="window-controls">
+            <button id="close"></button>
+            <button id="minimize"></button>
+        </div>
+        <span class="title">Amazon Seller Central Login</span>
+        <div style="width: 3rem"></div>
+    </header>
+    
+    <!-- Initial Login State -->
+    <div id="login-state" class="state content active">
+        <p class="message">
+            Your Amazon Seller Central session has expired.<br>
+            Please log in again to continue.
+        </p>
+        <div class="buttons">
+            <button class="button primary" id="login">Login Now</button>
+            <button class="button secondary" id="cancel">Cancel</button>
+        </div>
+    </div>
+
+    <!-- Completion State -->
+    <div id="completion-state" class="state content">
+        <p class="message">
+            Please complete your login in the browser window.<br>
+            Click "Done" when you have finished logging in.
+        </p>
+        <div class="buttons">
+            <button class="button primary" id="done">Done</button>
+            <button class="button secondary" id="cancel-login">Cancel</button>
+        </div>
+    </div>
+
+    <script>
+        try {
+            const electron = require('electron');
+            const { ipcRenderer } = electron;
+
+            // Add error logging
+            window.onerror = function(message, source, lineno, colno, error) {
+                console.error('Error:', message, 'at', source, ':', lineno);
+                if (error) console.error(error);
+            };
+
+            // State management
+            let currentState = 'login';
+            
+            function showState(state) {
+                document.getElementById('login-state').classList.remove('active');
+                document.getElementById('completion-state').classList.remove('active');
+                document.getElementById(`${state}-state`).classList.add('active');
+                currentState = state;
+            }
+
+            // Listen for state change from main process
+            ipcRenderer.on('change-state', (_, state) => {
+                showState(state);
+            });
+
+            // Window controls
+            document.getElementById('close').addEventListener('click', () => {
+                ipcRenderer.send('reauth-response', 'cancel');
+            });
+
+            document.getElementById('minimize').addEventListener('click', () => {
+                ipcRenderer.send('minimize-reauth');
+            });
+
+            // Login state buttons
+            document.getElementById('login').addEventListener('click', () => {
+                ipcRenderer.send('reauth-response', 'login');
+                showState('completion');
+            });
+
+            document.getElementById('cancel').addEventListener('click', () => {
+                ipcRenderer.send('reauth-response', 'cancel');
+            });
+
+            // Completion state buttons
+            document.getElementById('done').addEventListener('click', () => {
+                ipcRenderer.send('reauth-response', 'done');
+            });
+
+            document.getElementById('cancel-login').addEventListener('click', () => {
+                ipcRenderer.send('reauth-response', 'cancel');
+            });
+        } catch (error) {
+            console.error('Script initialization error:', error);
+        }
+    </script>
+</body>
+</html> 

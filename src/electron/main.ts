@@ -174,35 +174,53 @@ function setupHttpServer(automationManager: ReturnType<typeof createAutomationMa
       const request = req.body as AutomationRequest;
       const id = await automationManager.startAutomation(request);
 
+      // If the ID is pending-auth, send a different response
+      if (id === 'pending-auth') {
+        return res.json({ status: 'pending-auth', message: 'Authentication in progress' });
+      }
+
+      console.log('Automation started with ID:', id);
+
       // Wait for automation to complete
       await new Promise<void>((resolve, reject) => {
         let attempts = 0;
-        const maxAttempts = 30; // 30 seconds timeout
+        const maxAttempts = 300; // Increased to 5 minutes (300 seconds)
+        const checkInterval = 1000; // Check every second
 
         const checkStatus = async () => {
-          const result = await automationManager.getAutomationResult(id);
-          
-          if (result) {
-            if (result.error) {
-              reject(new Error(result.error));
-            } else if (result.fnsku) {
-              resolve();
-            } else {
-              // Keep waiting if we have a result but no FNSKU yet
-              if (attempts++ < maxAttempts) {
-                setTimeout(checkStatus, 1000);
+          try {
+            console.log(`Checking status attempt ${attempts + 1}/${maxAttempts} for ID: ${id}`);
+            const result = await automationManager.getAutomationResult(id);
+            
+            if (result) {
+              console.log('Got result:', result);
+              if (result.error) {
+                reject(new Error(result.error));
+              } else if (result.fnsku) {
+                resolve();
               } else {
-                reject(new Error('Timeout waiting for FNSKU'));
+                // Keep waiting if we have a result but no FNSKU yet
+                if (attempts++ < maxAttempts) {
+                  setTimeout(checkStatus, checkInterval);
+                } else {
+                  reject(new Error(`Timeout waiting for FNSKU after ${maxAttempts * checkInterval / 1000} seconds (5 minutes)`));
+                }
+              }
+            } else {
+              console.log('No result yet');
+              if (attempts++ < maxAttempts) {
+                setTimeout(checkStatus, checkInterval);
+              } else {
+                reject(new Error(`Timeout waiting for result after ${maxAttempts * checkInterval / 1000} seconds (5 minutes)`));
               }
             }
-          } else {
-            if (attempts++ < maxAttempts) {
-              setTimeout(checkStatus, 1000);
-            } else {
-              reject(new Error('Timeout waiting for result'));
-            }
+          } catch (error) {
+            console.error('Error checking status:', error);
+            reject(error);
           }
         };
+
+        // Start checking
         checkStatus();
       });
 
@@ -213,6 +231,7 @@ function setupHttpServer(automationManager: ReturnType<typeof createAutomationMa
       }
       res.json({ id, fnsku: result.fnsku });
     } catch (error) {
+      console.error('Automation error:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       res.status(500).json({ error: errorMessage });
     }

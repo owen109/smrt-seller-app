@@ -131,3 +131,22 @@ type ListingResult = {
     success: boolean;
     error?: string;
 }
+
+type PendingAutomation = {
+    request: AutomationRequest;
+    startTime: number;
+    retryCount: number;
+}
+
+type ReauthenticationStatus = {
+    isReauthenticating: boolean;
+    pendingAutomations: PendingAutomation[];
+    lastAttempt?: number;
+}
+
+// Update AutomationManager state in types
+interface AutomationManagerState {
+    isConfigured: boolean;
+    lastLogin?: string;
+    reauthStatus?: ReauthenticationStatus;
+}
