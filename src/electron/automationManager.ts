@@ -5,6 +5,8 @@ import { v4 as uuidv4 } from 'uuid';
 import { ipcWebContentsSend } from './util.js';
 import { BrowserWindow } from 'electron';
 import fs from 'fs/promises';
+import { generateLabel } from './labelGenerator.js';
+import { print, isPrintComplete } from 'unix-print';
 
 // Create a logging utility
 const log = {
@@ -50,6 +52,7 @@ class AutomationManager {
     private mainWindow: BrowserWindow;
     private profilesPath: string;
     private configPath: string;
+    private printerName: string = '';  // Default to empty string
 
     constructor(mainWindow: BrowserWindow) {
         this.mainWindow = mainWindow;
@@ -69,6 +72,7 @@ class AutomationManager {
         });
         
         this.initializeDirectories();
+        this.initializePrinter();
     }
 
     private async initializeDirectories() {
@@ -99,6 +103,19 @@ class AutomationManager {
             });
         } catch (error) {
             log.error('Failed to create profile directories:', error);
+        }
+    }
+
+    private async initializePrinter() {
+        try {
+            const printers = await this.mainWindow.webContents.getPrintersAsync();
+            const defaultPrinter = printers.find(p => p.isDefault);
+            if (defaultPrinter) {
+                this.printerName = defaultPrinter.name;
+                log.info('Default printer set:', defaultPrinter.name);
+            }
+        } catch (error) {
+            log.error('Failed to initialize printer:', error);
         }
     }
 
@@ -425,6 +442,28 @@ class AutomationManager {
         // TODO: Implement orders automation
     }
 
+    // Utility function for printing with unix-print
+    private async printPDFUnix(pdfPath: string, printerName?: string, options: string[] = []): Promise<boolean> {
+        try {
+            log.info('Printing PDF:', pdfPath);
+            log.info('Printer:', printerName || 'default');
+            log.info('Options:', options);
+
+            const printJob = await print(pdfPath, printerName, options);
+            
+            // Wait for print completion
+            while (!await isPrintComplete(printJob)) {
+                await new Promise(resolve => setTimeout(resolve, 500)); // Check every 500ms
+            }
+
+            log.info('Print completed successfully');
+            return true;
+        } catch (error) {
+            log.error('Print failed:', error);
+            return false;
+        }
+    }
+
     private async handleCreateListing(automation: RunningAutomation, params?: AutomationRequest['params']) {
         if (!params?.asin || !params?.sku || !params?.price) {
             throw new Error('Missing required parameters for listing creation');
@@ -496,6 +535,30 @@ class AutomationManager {
             console.log('Listing created successfully FNSKU:', fnskuValue);
             if (!fnskuValue) {
                 throw new Error('Could not extract valid FNSKU from page');
+            }
+
+            // Generate and print label
+            this.updateAutomationStatus(automation, {
+                message: 'Generating and printing label...',
+                progress: 90
+            });
+
+            const labelPath = await generateLabel({
+                fnsku: fnskuValue,
+                sku: params.sku,
+                asin: params.asin,
+                condition: params.condition
+            });
+
+            // Print using unix-print
+            const success = await this.printPDFUnix(labelPath, this.printerName, [
+                '-o fit-to-page',
+                '-o nocolor',  // Labels are typically black and white
+                '-n 1'        // Print one copy
+            ]);
+
+            if (!success) {
+                throw new Error('Failed to print label');
             }
 
             // Store the FNSKU in the automation result

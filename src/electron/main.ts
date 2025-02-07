@@ -6,12 +6,36 @@ import { getPreloadPath, getUIPath, getAssetPath } from './pathResolver.js';
 import { createTray } from './tray.js';
 import { createMenu } from './menu.js';
 import { createAutomationManager } from './automationManager.js';
+import { generateLabel } from './labelGenerator.js';
+import { print, isPrintComplete } from 'unix-print';
 import path from 'path';
 import fs from 'fs';
 // Commenting out Clerk for now
 // import { Clerk } from '@clerk/clerk-sdk-node';
 // const CLERK_SECRET_KEY = process.env.CLERK_SECRET_KEY;
 // const clerk = new Clerk({ secretKey: CLERK_SECRET_KEY });
+
+// Utility function for printing with unix-print
+async function printPDFUnix(pdfPath: string, printerName?: string, options: string[] = []): Promise<boolean> {
+  try {
+    console.log('Printing PDF:', pdfPath);
+    console.log('Printer:', printerName || 'default');
+    console.log('Options:', options);
+
+    const printJob = await print(pdfPath, printerName, options);
+    
+    // Wait for print completion
+    while (!await isPrintComplete(printJob)) {
+      await new Promise(resolve => setTimeout(resolve, 500)); // Check every 500ms
+    }
+
+    console.log('Print completed successfully');
+    return true;
+  } catch (error) {
+    console.error('Print failed:', error);
+    return false;
+  }
+}
 
 app.on('ready', () => {
   const mainWindow = new BrowserWindow({
@@ -109,17 +133,22 @@ function setupIpcHandlers(automationManager: ReturnType<typeof createAutomationM
 
   ipcMainHandle<'testPrint'>("testPrint", async (_event, settings: PrintSettings) => {
     try {
-      await mainWindow.webContents.print({
-        silent: true,
-        printBackground: true,
-        deviceName: settings.printer,
-        color: settings.color,
-        copies: settings.copies || 1,
-        margins: {
-          marginType: 'none'
-        }
+      // Create a test label
+      const testLabelPath = await generateLabel({
+        fnsku: 'X00000000',
+        sku: 'TEST-SKU',
+        asin: 'TEST-ASIN',
+        condition: 'Test Print'
       });
-      return true;
+
+      // Print using unix-print
+      const success = await printPDFUnix(testLabelPath, settings.printer, [
+        '-o fit-to-page',
+        settings.color ? '-o color' : '-o nocolor',
+        `-n ${settings.copies || 1}`
+      ]);
+
+      return success;
     } catch (error) {
       console.error('Print error:', error);
       return false;

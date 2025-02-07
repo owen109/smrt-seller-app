@@ -55,6 +55,40 @@ type PrintSettings = {
     duplex?: boolean;
 }
 
+// Update PrintOptions type to match Electron's WebContentsPrintOptions
+interface PrintOptions {
+    silent?: boolean;
+    printBackground?: boolean;
+    deviceName?: string;
+    color?: boolean;
+    margins?: {
+        marginType?: 'default' | 'none' | 'printableArea' | 'custom';
+        top?: number;
+        bottom?: number;
+        left?: number;
+        right?: number;
+    };
+    landscape?: boolean;
+    scaleFactor?: number;
+    pagesPerSheet?: number;
+    collate?: boolean;
+    copies?: number;
+    pageRanges?: Array<{
+        from: number;
+        to: number;
+    }>;
+    headerFooter?: {
+        title?: string;
+        url?: string;
+        date?: string;
+    };
+    duplexMode?: 'simplex' | 'shortEdge' | 'longEdge';
+    dpi?: {
+        horizontal: number;
+        vertical: number;
+    };
+}
+
 // REGISTERED EVENTS
 type EventPayloadMapping = {
     statistics: Statistics;
