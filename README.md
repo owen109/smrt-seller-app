@@ -49,4 +49,4 @@ export default tseslint.config({
 })
 ```
 
-test
+te
