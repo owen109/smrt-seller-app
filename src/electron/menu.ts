@@ -26,31 +26,5 @@ export function createMenu(mainWindow: BrowserWindow){
 
         ]
     },
-    {
-        label: "View",
-        type: 'submenu',
-        submenu: [
-            {
-                label: 'CPU',
-                click: () => {
-                    ipcWebContentsSend('changeView', mainWindow.webContents, 'CPU');
-                }
-            },
-            {
-                label: 'RAM',
-                click: () => {
-                    ipcWebContentsSend('changeView', mainWindow.webContents, 'RAM');
-                }
-            },
-            {
-                label: 'Storage',
-                click: () => {
-                    ipcWebContentsSend('changeView', mainWindow.webContents, 'STORAGE');
-                }
-            },
-
-        ]
-    },
-
     ]))
 }
