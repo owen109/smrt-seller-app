@@ -223,6 +223,7 @@ header button {
   display: flex;
   align-items: center;
   gap: 1rem;
+  flex-wrap: wrap;
 }
 
 .printer-label {
@@ -232,7 +233,8 @@ header button {
   white-space: nowrap;
 }
 
-.printer-select {
+.printer-select,
+.size-select {
   flex: 1;
   padding: 0.5rem;
   border: 1px solid #ddd;
@@ -246,11 +248,11 @@ header button {
   outline: none !important;
 }
 
-.printer-select:focus {
+.printer-select:focus,
+.size-select:focus {
   outline: none !important;
   border-color: #ddd;
   box-shadow: none;
-  
 }
 
 .print-button {

@@ -15,6 +15,8 @@ type View = "CPU" | "RAM" | "STORAGE";
 
 type FrameWindowAction = "CLOSE" | "MINIMIZE" | "MAXIMIZE";
 
+type LabelSize = 'STANDARD' | 'SMALL' | 'LARGE';
+
 type AutomationStatus = {
     id: string;
     status: 'running' | 'paused' | 'error' | 'completed';
@@ -54,6 +56,7 @@ type PrintSettings = {
     copies?: number;
     color?: boolean;
     duplex?: boolean;
+    labelSize: LabelSize;
 }
 
 // Update PrintOptions type to match Electron's WebContentsPrintOptions

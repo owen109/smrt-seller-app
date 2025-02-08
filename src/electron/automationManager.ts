@@ -54,6 +54,7 @@ type PendingAutomation = {
     request: AutomationRequest;
     startTime: number;
     retryCount: number;
+    originalId?: string;
 }
 
 class AutomationManager {
@@ -68,6 +69,12 @@ class AutomationManager {
     private printerName: string = '';
     private isReauthenticating: boolean = false;
     private authBrowser: Browser | null = null;
+    private printSettings: PrintSettings = {
+        printer: '',
+        labelSize: 'STANDARD',
+        copies: 1,
+        color: false
+    };
 
     constructor(mainWindow: BrowserWindow) {
         this.mainWindow = mainWindow;
@@ -206,9 +213,19 @@ class AutomationManager {
             await page.goto('https://sellercentral.amazon.com/');
             
             this.updateAutomationStatus(automation, {
-                message: 'Please log in to Seller Central. Click "Complete Setup" when finished.',
+                message: 'Please log in to Seller Central...',
                 progress: 50
             });
+
+            // Wait for navigation to home page after login
+            await page.waitForURL(url => {
+                const urlStr = url.toString();
+                return urlStr.includes('sellercentral.amazon.com') && 
+                    (urlStr.includes('/home') || urlStr.includes('/dashboard') || urlStr.includes('/inventory'));
+            }, { timeout: 300000 }); // 5 minute timeout
+
+            // Auto-complete setup once we detect successful login
+            await this.completeSetup(id);
 
             return id;
 
@@ -352,16 +369,62 @@ class AutomationManager {
         }
     }
 
-    private async handleLoginRequired() {
-        if (this.isReauthenticating) return; // Already handling reauth
+    private async handleLoginRequired(triggeringAutomationId?: string) {
+        if (this.isReauthenticating) {
+            // If already reauthorizing, just wait for it to complete
+            await new Promise<void>((resolve, reject) => {
+                const checkReauth = () => {
+                    if (!this.isReauthenticating) {
+                        resolve();
+                    } else {
+                        setTimeout(checkReauth, 1000);
+                    }
+                };
+                setTimeout(checkReauth, 1000);
+                // Timeout after 5 minutes
+                setTimeout(() => reject(new Error('Reauth wait timeout')), 300000);
+            });
+            return;
+        }
         this.isReauthenticating = true;
 
         try {
-            // Close all running automations that need re-auth
-            for (const [id, automation] of this.runningAutomations.entries()) {
-                if (automation.page.url().includes('signin')) {
-                    await this.cleanupAutomation(id);
+            // Store the triggering automation's details before cleanup
+            let triggeringAutomation: PendingAutomation | undefined;
+            if (triggeringAutomationId) {
+                const automation = this.runningAutomations.get(triggeringAutomationId);
+                if (automation) {
+                    triggeringAutomation = {
+                        request: {
+                            type: automation.status.details?.asin ? 'createListing' : 'inventory',
+                            params: {
+                                sku: automation.status.details?.sku,
+                                asin: automation.status.details?.asin,
+                                // Add other params as needed
+                            }
+                        },
+                        startTime: Date.now(),
+                        retryCount: 0,
+                        originalId: triggeringAutomationId
+                    };
+                    // Clean up only the triggering automation
+                    await this.cleanupAutomation(triggeringAutomationId);
                 }
+            }
+
+            // Pause all other running automations
+            for (const [id, automation] of this.runningAutomations.entries()) {
+                if (id !== triggeringAutomationId) {
+                    this.updateAutomationStatus(automation, {
+                        status: 'paused',
+                        message: 'Paused for re-authentication...'
+                    });
+                }
+            }
+
+            // Add only the triggering automation to pending automations if it exists
+            if (triggeringAutomation) {
+                this.pendingAutomations = [triggeringAutomation];
             }
 
             // Create popup window
@@ -670,54 +733,42 @@ class AutomationManager {
             // Navigate to Seller Central
             await page.goto('https://sellercentral.amazon.com/');
 
-            // Wait for user to complete login and click Done
-            const response = await new Promise<string>((resolve, reject) => {
-                ipcMain.once('reauth-response', (_event, response) => {
-                    resolve(response);
+            try {
+                // Wait for navigation to home page after login
+                await page.waitForURL(url => {
+                    const urlStr = url.toString();
+                    return urlStr.includes('sellercentral.amazon.com') && 
+                        (urlStr.includes('/home') || urlStr.includes('/dashboard') || urlStr.includes('/inventory'));
+                }, { timeout: 300000 }); // 5 minute timeout
+
+                // Save the session
+                await context.storageState({ 
+                    path: path.join(this.profilesPath, 'storage.json') 
                 });
 
-                popup.on('closed', () => {
-                    reject(new Error('Window closed before completion'));
-                });
-            });
-
-            if (response === 'done') {
-                try {
-                    // Save the session
-                    await context.storageState({ 
-                        path: path.join(this.profilesPath, 'storage.json') 
-                    });
-
-                    // Close auth browser
-                    if (this.authBrowser) {
-                        await this.authBrowser.close().catch(e => log.error('Error closing auth browser:', e));
-                        this.authBrowser = null;
-                    }
-
-                    // Update config
-                    await this.saveConfig({
-                        isConfigured: true,
-                        lastLogin: new Date().toISOString()
-                    });
-
-                    // Close popup if it's still open
-                    if (!popup.isDestroyed()) {
-                        popup.close();
-                    }
-
-                    // Retry pending automations
-                    await this.retryPendingAutomations();
-                } catch (error) {
-                    log.error('Error during completion cleanup:', error);
-                    throw error;
-                }
-            } else {
-                // Ensure browser is closed on cancel
+                // Close auth browser
                 if (this.authBrowser) {
                     await this.authBrowser.close().catch(e => log.error('Error closing auth browser:', e));
                     this.authBrowser = null;
                 }
-                throw new Error('Authentication cancelled');
+
+                // Update config
+                await this.saveConfig({
+                    isConfigured: true,
+                    lastLogin: new Date().toISOString()
+                });
+
+                // Close popup if it's still open
+                if (!popup.isDestroyed()) {
+                    popup.close();
+                }
+
+                // Retry pending automations
+                await this.retryPendingAutomations();
+
+            } catch (error) {
+                log.error('Error during login wait:', error);
+                throw error;
             }
 
         } catch (error) {
@@ -741,39 +792,86 @@ class AutomationManager {
     private async retryPendingAutomations() {
         this.isReauthenticating = false;
         
-        // Process all pending automations
+        // Process all pending automations (should only be the triggering one)
         const automations = [...this.pendingAutomations];
         this.pendingAutomations = [];
 
-        // Retry each automation
-        for (const pending of automations) {
+        // Create a map to track results by original ID
+        const resultPromises = new Map<string, ReturnType<typeof this.createResolvablePromise<RunningAutomation['result']>>>();
+
+        // Start the triggering automation
+        const retryPromises = automations.map(async (pending) => {
             try {
-                // Create a new automation instance
-                const id = pending.request.type === 'createListing' ? 
-                    `${pending.request.params?.sku}-retry` : uuidv4();
+                // Create a new automation instance with a new ID
+                const newId = uuidv4();
                 
-                const automation = await this.createAutomation(id, pending.request);
-                this.runningAutomations.set(id, automation);
+                const automation = await this.createAutomation(newId, pending.request);
+                this.runningAutomations.set(newId, automation);
                 
                 // Run the automation
-                await this.runAutomation(automation, pending.request);
-            } catch (error) {
-                log.error('Failed to retry automation:', error);
-                // If it fails again due to auth, we might need another re-auth cycle
-                if (error instanceof Error && 
-                    (error.message.includes('Login required') || 
-                     error.message.includes('signin'))) {
-                    // Re-queue the automation and trigger another auth cycle
-                    this.pendingAutomations.push({
-                        ...pending,
-                        retryCount: (pending.retryCount || 0) + 1
-                    });
-                    if (pending.retryCount < 3) { // Limit retry attempts
-                        await this.handleLoginRequired();
+                const result = await this.runAutomation(automation, pending.request);
+                
+                // If this automation had an original ID, store the result
+                if (pending.originalId) {
+                    this.completedResults.set(pending.originalId, result);
+                    // Resolve the promise for this original ID
+                    const resolver = resultPromises.get(pending.originalId);
+                    if (resolver) {
+                        resolver.resolve(result);
                     }
                 }
+                
+                return { success: true, id: newId, originalId: pending.originalId };
+            } catch (error) {
+                log.error('Failed to retry automation:', error);
+                
+                // If this automation had an original ID, store the error
+                if (pending.originalId) {
+                    const errorResult = {
+                        error: error instanceof Error ? error.message : 'Unknown error occurred'
+                    };
+                    this.completedResults.set(pending.originalId, errorResult);
+                    // Reject the promise for this original ID
+                    const resolver = resultPromises.get(pending.originalId);
+                    if (resolver) {
+                        resolver.reject(error instanceof Error ? error : new Error('Unknown error occurred'));
+                    }
+                }
+                return { success: false, error, id: null, originalId: pending.originalId };
+            }
+        });
+
+        // Wait for the triggering automation to complete
+        await Promise.allSettled(retryPromises);
+
+        // Resume all paused automations
+        for (const [id, automation] of this.runningAutomations.entries()) {
+            if (automation.status.status === 'paused') {
+                // Resume the automation by updating its status
+                this.updateAutomationStatus(automation, {
+                    status: 'running',
+                    message: 'Resuming automation...'
+                });
+
+                // Refresh the page to ensure we have a fresh session
+                await automation.page.reload();
             }
         }
+    }
+
+    // Helper method to create a promise with external resolve/reject
+    private createResolvablePromise<T>(): { 
+        promise: Promise<T>, 
+        resolve: (value: T) => void, 
+        reject: (error: Error) => void 
+    } {
+        let resolve!: (value: T) => void;
+        let reject!: (error: Error) => void;
+        const promise = new Promise<T>((res, rej) => {
+            resolve = res;
+            reject = rej;
+        });
+        return { promise, resolve, reject };
     }
 
     async startAutomation(request: AutomationRequest): Promise<string> {
@@ -822,7 +920,7 @@ class AutomationManager {
                     });
 
                     // Handle login required - this will retry the automation after successful login
-                    await this.handleLoginRequired();
+                    await this.handleLoginRequired(automation.id);
                 } else {
                     // For non-auth errors, update status and cleanup
                     this.updateAutomationStatus(automation, {
@@ -1032,7 +1130,41 @@ class AutomationManager {
                               await page.locator('input[type="password"]').count() > 0;
             
             if (isLoginPage) {
-                throw new Error('Login required');
+                // Handle login and wait for it to complete, passing this automation's ID
+                await this.handleLoginRequired(automation.id);
+                
+                // The automation will be retried by retryPendingAutomations
+                // We need to wait for the result of the retried automation
+                const retriedResult = await new Promise<{ fnsku: string }>((resolve, reject) => {
+                    const maxWaitTime = 300000; // 5 minutes
+                    const startTime = Date.now();
+                    
+                    const checkResult = async () => {
+                        // Check if we've exceeded wait time
+                        if (Date.now() - startTime > maxWaitTime) {
+                            reject(new Error('Timed out waiting for automation result'));
+                            return;
+                        }
+
+                        // Check completed results for any matching FNSKU
+                        const result = this.completedResults.get(automation.id);
+                        if (result && 'fnsku' in result && result.fnsku) {
+                            resolve({ fnsku: result.fnsku });
+                            return;
+                        } else if (result && 'error' in result) {
+                            reject(new Error(result.error || 'Unknown error occurred'));
+                            return;
+                        }
+
+                        // Check again in 1 second if no result found
+                        setTimeout(checkResult, 1000);
+                    };
+
+                    // Start checking
+                    checkResult();
+                });
+
+                return retriedResult;
             }
 
             this.updateAutomationStatus(automation, {
@@ -1053,7 +1185,12 @@ class AutomationManager {
             // Fill form fields
             await page.getByRole('textbox', { name: 'Seller SKU' }).fill(params.sku);
             await page.getByRole('textbox', { name: 'Your Price' }).fill(params.price.toString());
-            await page.getByRole('textbox', { name: 'List Price' }).fill((params.price * 1.5).toString());
+
+            // Check if List Price field exists before filling it
+            const listPriceField = page.getByRole('textbox', { name: 'List Price' });
+            if (await listPriceField.isVisible()) {
+                await listPriceField.fill((params.price * 1.5).toString());
+            }
 
             await page.evaluate(() => {
                 window.scrollBy(0, 800);
@@ -1134,12 +1271,17 @@ class AutomationManager {
                 progress: 90
             });
 
+            // Get current print settings for label size
+            const printers = await this.mainWindow.webContents.getPrintersAsync();
+            const defaultPrinter = printers.find(p => p.isDefault);
+
             // Now we know params exists and has the required properties
             const labelPath = await generateLabel({
                 fnsku,
                 sku: params.sku!,
                 asin: params.asin!,
-                condition: params.condition
+                condition: params.condition,
+                labelSize: this.printSettings?.labelSize || 'STANDARD' // Use configured size or default to STANDARD
             });
 
             // Print using unix-print
@@ -1228,6 +1370,17 @@ class AutomationManager {
 
     getPrinterName(): string {
         return this.printerName;
+    }
+
+    // Add a method to get print settings
+    getPrintSettings(): PrintSettings {
+        return this.printSettings;
+    }
+
+    // Add a method to update print settings
+    setPrintSettings(settings: PrintSettings) {
+        this.printSettings = settings;
+        this.printerName = settings.printer;
     }
 }
 

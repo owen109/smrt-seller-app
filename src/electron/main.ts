@@ -133,17 +133,24 @@ function setupIpcHandlers(automationManager: ReturnType<typeof createAutomationM
 
   ipcMainHandle<'testPrint'>("testPrint", async (_event, settings: PrintSettings) => {
     try {
+      // Update automation manager's print settings
+      automationManager.setPrintSettings(settings);
+
       // Create a test label
       const testLabelPath = await generateLabel({
         fnsku: 'X00000000',
         sku: 'TEST-SKU',
         asin: 'TEST-ASIN',
-        condition: 'Test Print'
+        condition: 'Test Print',
+        labelSize: settings.labelSize
       });
 
-      // Print using unix-print
+      // Print using unix-print with proper scaling
       const success = await printPDFUnix(testLabelPath, settings.printer, [
-        '-o fit-to-page',
+        // Remove fit-to-page to respect the PDF dimensions
+        '-o media=Custom.66.7x25.4mm',  // Default to standard size
+        ...(settings.labelSize === 'SMALL' ? ['-o media=Custom.50.8x25.4mm'] : []),
+        ...(settings.labelSize === 'LARGE' ? ['-o media=Custom.76.2x50.8mm'] : []),
         settings.color ? '-o color' : '-o nocolor',
         `-n ${settings.copies || 1}`
       ]);
@@ -180,18 +187,25 @@ function setupHttpServer(automationManager: ReturnType<typeof createAutomationMa
         });
       }
 
+      // Get current print settings
+      const printSettings = automationManager.getPrintSettings();
+
       // Generate and print the label
       const labelPath = await generateLabel({
         fnsku,
         sku,
         asin,
         title,
-        condition
+        condition,
+        labelSize: printSettings.labelSize
       });
 
-      // Print using unix-print with quantity
+      // Print using unix-print with proper scaling
       const success = await printPDFUnix(labelPath, automationManager.getPrinterName(), [
-        '-o fit-to-page',
+        // Remove fit-to-page to respect the PDF dimensions
+        '-o media=Custom.66.7x25.4mm',  // Default to standard size
+        ...(printSettings.labelSize === 'SMALL' ? ['-o media=Custom.50.8x25.4mm'] : []),
+        ...(printSettings.labelSize === 'LARGE' ? ['-o media=Custom.76.2x50.8mm'] : []),
         '-o nocolor',
         `-n ${Math.max(1, Math.min(100, parseInt(quantity) || 1))}` // Limit between 1 and 100 copies
       ]);
@@ -230,16 +244,6 @@ function setupHttpServer(automationManager: ReturnType<typeof createAutomationMa
       const id = await automationManager.startAutomation(request);
       console.log('Received automation ID:', id);
 
-      // If the ID is pending-auth, send a different response
-      if (id === 'pending-auth') {
-        console.log('Authentication required, returning pending-auth status');
-        return res.json({ 
-          status: 'pending-auth', 
-          message: 'Authentication in progress',
-          timestamp: new Date().toISOString()
-        });
-      }
-
       // Get the result immediately after automation completes
       console.log('Getting automation result for ID:', id);
       const finalResult = await automationManager.getAutomationResult(id);
@@ -251,16 +255,6 @@ function setupHttpServer(automationManager: ReturnType<typeof createAutomationMa
       }
       
       if (!finalResult.fnsku) {
-        // Check if there's an error in the result
-        if (finalResult.error) {
-          console.log('Error found in result:', finalResult.error);
-          return res.status(500).json({ 
-            success: false,
-            error: finalResult.error,
-            automationId: id,
-            timestamp: new Date().toISOString()
-          });
-        }
         console.log('No FNSKU found in result:', finalResult);
         throw new Error('Failed to get FNSKU from automation');
       }

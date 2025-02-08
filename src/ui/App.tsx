@@ -16,7 +16,8 @@ function App() {
     printer: '',
     copies: 1,
     color: false,
-    duplex: false
+    duplex: false,
+    labelSize: 'STANDARD'
   });
   const [isPrinterExpanded, setIsPrinterExpanded] = useState(false);
 
@@ -175,6 +176,21 @@ function App() {
                 </>
               )}
             </select>
+
+            <span className="printer-label">Label Size:</span>
+            <select
+              value={printSettings.labelSize}
+              onChange={(e) => setPrintSettings(prev => ({ 
+                ...prev, 
+                labelSize: e.target.value as LabelSize 
+              }))}
+              className="size-select"
+            >
+              <option value="STANDARD">Standard (2.625" x 1")</option>
+              <option value="SMALL">Small (2" x 1")</option>
+              <option value="LARGE">Large (3" x 2")</option>
+            </select>
+
             <button 
               onClick={handleTestPrint}
               className="print-button"
