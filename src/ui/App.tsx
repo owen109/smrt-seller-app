@@ -123,17 +123,10 @@ function App() {
               Start Setup
             </button>
           ) : (
-            <>
-              <p className="setup-info">
-                Please log in to your Seller Central account in the browser window that opened.
-              </p>
-              <button 
-                onClick={handleCompleteSetup}
-                className="setup-button complete"
-              >
-                Complete Setup
-              </button>
-            </>
+            <p className="setup-info">
+              Please log in to your Seller Central account in the browser window that opened.<br/>
+              The setup will complete automatically once you're logged in.
+            </p>
           )}
         </div>
       </div>

@@ -213,7 +213,7 @@ class AutomationManager {
             await page.goto('https://sellercentral.amazon.com/');
             
             this.updateAutomationStatus(automation, {
-                message: 'Please log in to Seller Central...',
+                message: 'Please log in to Seller Central. Setup will complete automatically...',
                 progress: 50
             });
 
@@ -224,8 +224,28 @@ class AutomationManager {
                     (urlStr.includes('/home') || urlStr.includes('/dashboard') || urlStr.includes('/inventory'));
             }, { timeout: 300000 }); // 5 minute timeout
 
-            // Auto-complete setup once we detect successful login
-            await this.completeSetup(id);
+            // Save the browser state
+            await context.storageState({ 
+                path: path.join(this.profilesPath, 'storage.json') 
+            });
+
+            // Save setup status
+            await this.saveConfig({
+                isConfigured: true,
+                lastLogin: new Date().toISOString()
+            });
+
+            this.updateAutomationStatus(automation, {
+                message: 'Setup completed successfully! You can now close this window.',
+                progress: 100,
+                status: 'completed'
+            });
+
+            // Wait a brief moment for the user to see the success message
+            await new Promise(resolve => setTimeout(resolve, 2000));
+
+            // Cleanup and close browser
+            await this.cleanupAutomation(id);
 
             return id;
 
@@ -561,6 +581,7 @@ class AutomationManager {
                             font-weight: 500;
                             cursor: pointer;
                             transition: background-color 0.2s;
+                            min-width: 120px;
                         }
 
                         .primary {
@@ -575,6 +596,7 @@ class AutomationManager {
                         .secondary {
                             background-color: #f5f5f5;
                             color: #333;
+                            min-width: 140px;
                         }
 
                         .secondary:hover {
@@ -612,14 +634,13 @@ class AutomationManager {
                         </div>
                     </div>
 
-                    <!-- Completion State -->
-                    <div id="completion-state" class="state content">
+                    <!-- Loading State -->
+                    <div id="loading-state" class="state content">
                         <p class="message">
                             Please complete your login in the browser window.<br>
-                            Click "Done" when you have finished logging in.
+                            The process will continue automatically once you're logged in.
                         </p>
                         <div class="buttons">
-                            <button class="button primary" id="done">Done</button>
                             <button class="button secondary" id="cancel-login">Cancel</button>
                         </div>
                     </div>
@@ -640,7 +661,7 @@ class AutomationManager {
                             
                             function showState(state) {
                                 document.getElementById('login-state').classList.remove('active');
-                                document.getElementById('completion-state').classList.remove('active');
+                                document.getElementById('loading-state').classList.remove('active');
                                 document.getElementById(\`\${state}-state\`).classList.add('active');
                                 currentState = state;
                             }
@@ -662,18 +683,14 @@ class AutomationManager {
                             // Login state buttons
                             document.getElementById('login').addEventListener('click', () => {
                                 ipcRenderer.send('reauth-response', 'login');
-                                showState('completion');
+                                showState('loading');
                             });
 
                             document.getElementById('cancel').addEventListener('click', () => {
                                 ipcRenderer.send('reauth-response', 'cancel');
                             });
 
-                            // Completion state buttons
-                            document.getElementById('done').addEventListener('click', () => {
-                                ipcRenderer.send('reauth-response', 'done');
-                            });
-
+                            // Loading state buttons
                             document.getElementById('cancel-login').addEventListener('click', () => {
                                 ipcRenderer.send('reauth-response', 'cancel');
                             });
@@ -708,10 +725,6 @@ class AutomationManager {
                                 popup.close();
                                 reject(error);
                             }
-                            break;
-                        case 'done':
-                            popup.close();
-                            resolve();
                             break;
                         case 'cancel':
                             popup.close();
