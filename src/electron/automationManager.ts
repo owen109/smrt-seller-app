@@ -59,6 +59,9 @@ type PendingAutomation = {
 class AutomationManager {
     private runningAutomations: Map<string, RunningAutomation> = new Map();
     private pendingAutomations: PendingAutomation[] = [];
+    private completedResults: Map<string, RunningAutomation['result']> = new Map();
+    private readonly MAX_COMPLETED_RESULTS = 1000; // Maximum number of results to keep
+    private readonly RESULT_TTL = 1000 * 60 * 60; // 1 hour TTL for results
     private mainWindow: BrowserWindow;
     private profilesPath: string;
     private configPath: string;
@@ -175,8 +178,8 @@ class AutomationManager {
 
         const context = await browser.newContext({
             userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:122.0) Gecko/20100101 Firefox/122.0',
-            viewport: { width: 1920, height: 1080 },
-            screen: { width: 1920, height: 1080 }
+            viewport: { width: 1500, height: 900 },
+            screen: { width: 1500, height: 900 }
         });
 
         const page = await context.newPage();
@@ -658,8 +661,8 @@ class AutomationManager {
 
             const context = await this.authBrowser.newContext({
                 userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:122.0) Gecko/20100101 Firefox/122.0',
-                viewport: { width: 1920, height: 1080 },
-                screen: { width: 1920, height: 1080 }
+                viewport: { width: 1500, height: 900 },
+                screen: { width: 1500, height: 900 }
             });
 
             const page = await context.newPage();
@@ -795,7 +798,14 @@ class AutomationManager {
             
             // Start the automation and handle re-auth if needed
             try {
-                await this.runAutomation(automation, request);
+                // Wait for the automation to complete and get the result
+                const result = await this.runAutomation(automation, request);
+                
+                // Store the result
+                automation.result = result;
+                
+                // Return the ID - the result will be available via getAutomationResult
+                return id;
             } catch (error: any) {
                 // Check if it's a login issue
                 if (error.message.includes('Login required') || 
@@ -833,7 +843,7 @@ class AutomationManager {
 
     private async createAutomation(id: string, request: AutomationRequest): Promise<RunningAutomation> {
         const browser = await firefox.launch({
-            headless: true,
+            headless: false,
             firefoxUserPrefs: {
                 'dom.webdriver.enabled': false,
                 'privacy.trackingprotection.enabled': false,
@@ -887,12 +897,14 @@ class AutomationManager {
 
         const context = await browser.newContext({
             storageState: path.join(this.profilesPath, 'storage.json'),
-            viewport: { width: 1920, height: 1080 },
-            screen: { width: 1920, height: 1080 }
+            viewport: { width: 1500, height: 900 },
+            screen: { width: 1500, height: 900 }
         });
 
         const page = await context.newPage();
         
+        // Set zoom level to zoom out (0.67 = ~67% zoom)
+
         return {
             id,
             browser,
@@ -909,18 +921,25 @@ class AutomationManager {
         };
     }
 
-    private async runAutomation(automation: RunningAutomation, request: AutomationRequest) {
+    private async runAutomation(automation: RunningAutomation, request: AutomationRequest): Promise<RunningAutomation['result']> {
         try {
+            let result: RunningAutomation['result'];
+            
             switch (request.type) {
                 case 'inventory':
                     await this.handleInventory(automation);
+                    result = {}; // No specific result for inventory
                     break;
                 case 'orders':
                     await this.handleOrders(automation);
+                    result = {}; // No specific result for orders
                     break;
                 case 'createListing':
-                    await this.handleCreateListing(automation, request.params);
+                    const listingResult = await this.handleCreateListing(automation, request.params);
+                    result = { fnsku: listingResult.fnsku };
                     break;
+                default:
+                    throw new Error('Unknown automation type');
             }
 
             this.updateAutomationStatus(automation, {
@@ -928,8 +947,14 @@ class AutomationManager {
                 progress: 100
             });
 
-            // Cleanup immediately
-            await this.cleanupAutomation(automation.id);
+            // Store the result in both places
+            automation.result = result;
+            this.completedResults.set(automation.id, result);
+            
+            // Cleanup old results periodically
+            this.cleanupCompletedResults();
+
+            return result;
 
         } catch (error) {
             log.error('Automation failed', error);
@@ -937,9 +962,19 @@ class AutomationManager {
                 status: 'error',
                 message: error instanceof Error ? error.message : 'Unknown error occurred'
             });
-            // Cleanup immediately on error
+            
+            const errorResult = { error: error instanceof Error ? error.message : 'Unknown error occurred' };
+            // Store error result in both places
+            automation.result = errorResult;
+            this.completedResults.set(automation.id, errorResult);
+            
+            // Cleanup old results periodically
+            this.cleanupCompletedResults();
+            
+            return errorResult;
+        } finally {
+            // Cleanup after result is handled
             await this.cleanupAutomation(automation.id);
-            throw error;
         }
     }
 
@@ -973,13 +1008,12 @@ class AutomationManager {
         }
     }
 
-    private async handleCreateListing(automation: RunningAutomation, params?: AutomationRequest['params']) {
+    private async handleCreateListing(automation: RunningAutomation, params?: AutomationRequest['params']): Promise<{ fnsku: string }> {
         if (!params?.asin || !params?.sku || !params?.price) {
             throw new Error('Missing required parameters for listing creation');
         }
 
         const { page } = automation;
-        const startTime = Date.now();
 
         try {
             this.updateAutomationStatus(automation, {
@@ -998,7 +1032,6 @@ class AutomationManager {
                               await page.locator('input[type="password"]').count() > 0;
             
             if (isLoginPage) {
-                // Immediately throw login error to trigger re-auth flow
                 throw new Error('Login required');
             }
 
@@ -1006,19 +1039,46 @@ class AutomationManager {
                 message: 'Filling listing details...',
                 progress: 50
             });
+
+            try {
+                // Try multiple selectors in case one fails
+                await page.locator('kat-radiobutton[name="attribute_filter_radio_buttons-all"]').click(),
+                // Small wait to ensure the UI updates
+                await page.waitForTimeout(100);
+            } catch (error) {
+                log.error('Warning: Failed to click All attributes radio button:', error);
+                // Continue anyway as this might not be critical
+            }
+
             // Fill form fields
             await page.getByRole('textbox', { name: 'Seller SKU' }).fill(params.sku);
             await page.getByRole('textbox', { name: 'Your Price' }).fill(params.price.toString());
             await page.getByRole('textbox', { name: 'List Price' }).fill((params.price * 1.5).toString());
 
-            // Set condition if provided
+            await page.evaluate(() => {
+                window.scrollBy(0, 800);
+            });
+            await new Promise(resolve => setTimeout(resolve, 100));
+            // Set condition if provided    
             if (params.condition) {
-                const dropdown = page.locator('div[part="dropdown-header"]');
-                await dropdown.click();
-                await new Promise(resolve => setTimeout(resolve, 250));
-                console.log('1 second passed');
-                const option = page.getByText(params.condition, { exact: false });
+                // First click the condition dropdown (specifically the second one)
+                const dropdowns = page.locator('div[part="dropdown-header"]');
+                const secondDropdown = dropdowns.nth(1);  // Get the second dropdown
+                await secondDropdown.click();
+                await new Promise(resolve => setTimeout(resolve, 100));
+
+                // Then find and click the condition option
+                const option = page.locator(`[role="option"]:has-text("${params.condition}")`);
                 await option.click();
+                await new Promise(resolve => setTimeout(resolve, 100));
+            }
+
+            // Fill condition notes if provided
+            console.log('Condition Notes:', params.conditionNotes);
+            if (params.conditionNotes) {
+                console.log('Filling condition notes');
+                await page.getByRole('textbox', { name: 'Condition Note' }).click();
+                await page.getByRole('textbox', { name: 'Condition Note' }).fill(params.conditionNotes);
             }
 
             this.updateAutomationStatus(automation, {
@@ -1036,62 +1096,138 @@ class AutomationManager {
             console.log('Getting FNSKU...');
             const fnskuElement = page.getByTestId('fnsku');
             const fnsku = await fnskuElement.textContent();
-            const fnskuValue = fnsku?.match(/X0[A-Z0-9]{8}/)?.[0] || '';
+            const fnskuValue = fnsku?.match(/X0[A-Z0-9]{8}/)?.[0];
             console.log('Listing created successfully FNSKU:', fnskuValue);
             if (!fnskuValue) {
                 throw new Error('Could not extract valid FNSKU from page');
             }
 
-            // Generate and print label
-            this.updateAutomationStatus(automation, {
-                message: 'Generating and printing label...',
-                progress: 90
-            });
+            // Store the result immediately with the non-null FNSKU
+            const result = { fnsku: fnskuValue };
+            automation.result = result;
 
-            const labelPath = await generateLabel({
-                fnsku: fnskuValue,
-                sku: params.sku,
-                asin: params.asin,
-                condition: params.condition
-            });
+            // Start label generation and printing in the background
+       /*    this.handleLabelPrinting(automation, fnskuValue, params).catch(error => {
+                log.error('Error in background label printing:', error);
+            });*/
+            await this.cleanupAutomation(automation.id);
 
-            // Print using unix-print
-            const success = await this.printPDFUnix(labelPath, this.printerName, [
-                '-o fit-to-page',
-                '-o nocolor',  // Labels are typically black and white
-                '-n 1'        // Print one copy
-            ]);
-
-            if (!success) {
-                throw new Error('Failed to print label');
-            }
-
-            // Store the FNSKU in the automation result
-            automation.result = { fnsku: fnskuValue };
-
-            this.updateAutomationStatus(automation, {
-                message: `Successfully created listing with FNSKU: ${fnskuValue}`,
-                progress: 100
-            });
+            // Return the result immediately with the non-null FNSKU
+            return result;
 
         } catch (error) {
             console.error('Error in listing creation:', error);
             if (!page.isClosed()) {
                 await page.screenshot({ path: path.join(this.profilesPath, `error_${Date.now()}.png`) });
             }
-            // Store the error in the automation result
+            // Set the error in automation.result for tracking
             automation.result = { error: error instanceof Error ? error.message : 'Unknown error occurred' };
             throw error;
         }
     }
 
-    // Add a method to get automation result
-    async getAutomationResult(id: string): Promise<RunningAutomation['result'] | null> {
-        const automation = this.runningAutomations.get(id);
-        if (!automation) {
-            return null; // Return null instead of throwing
+    // New method to handle label printing in the background
+    private async handleLabelPrinting(automation: RunningAutomation, fnsku: string, params: NonNullable<AutomationRequest['params']>) {
+        try {
+            this.updateAutomationStatus(automation, {
+                message: 'Generating and printing label...',
+                progress: 90
+            });
+
+            // Now we know params exists and has the required properties
+            const labelPath = await generateLabel({
+                fnsku,
+                sku: params.sku!,
+                asin: params.asin!,
+                condition: params.condition
+            });
+
+            // Print using unix-print
+            const success = await this.printPDFUnix(labelPath, this.printerName, [
+                '-o fit-to-page',
+                '-o nocolor',
+                '-n 1'
+            ]);
+
+            if (!success) {
+                this.updateAutomationStatus(automation, {
+                    message: 'Warning: Label printing failed, but listing was created successfully.',
+                    progress: 100
+                });
+                return;
+            }
+
+            this.updateAutomationStatus(automation, {
+                message: `Successfully created listing with FNSKU: ${fnsku}`,
+                progress: 100,
+                status: 'completed'
+            });
+
+        } catch (error) {
+            log.error('Label printing failed:', error);
+            this.updateAutomationStatus(automation, {
+                message: 'Warning: Label printing failed, but listing was created successfully.',
+                progress: 100,
+                status: 'completed'
+            });
+        } finally {
+            // Clean up the automation after printing is done
+            await this.cleanupAutomation(automation.id);
         }
-        return automation.result;
+    }
+
+    // Update the get result method to check both places
+    async getAutomationResult(id: string): Promise<RunningAutomation['result'] | null> {
+        log.info('Getting automation result', { id });
+        
+        // First check running automations
+        const automation = this.runningAutomations.get(id);
+        if (automation?.result) {
+            log.info('Found result in running automation', { 
+                id,
+                result: automation.result
+            });
+            return automation.result;
+        }
+
+        // Then check completed results
+        const completedResult = this.completedResults.get(id);
+        if (completedResult) {
+            log.info('Found result in completed results', {
+                id,
+                result: completedResult
+            });
+            return completedResult;
+        }
+
+        log.info('No result found for automation', { id });
+        return null;
+    }
+
+    private cleanupCompletedResults() {
+        const now = Date.now();
+        let count = 0;
+        
+        // Convert to array for easier filtering
+        const entries = Array.from(this.completedResults.entries());
+        
+        // Keep only recent results and within max limit
+        const validEntries = entries
+            .filter(([_, result]) => {
+                count++;
+                // Keep if within TTL and max count
+                return count < this.MAX_COMPLETED_RESULTS;
+            });
+        
+        // Clear and rebuild map
+        this.completedResults.clear();
+        validEntries.forEach(([id, result]) => {
+            this.completedResults.set(id, result);
+        });
+    }
+
+    getPrinterName(): string {
+        return this.printerName;
     }
 }
 

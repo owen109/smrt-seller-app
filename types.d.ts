@@ -33,6 +33,7 @@ type AutomationRequest = {
         sku?: string;
         price?: number;
         condition?: 'Used - Like New' | 'Used - Very Good' | 'Used - Good' | 'Used - Acceptable';
+        conditionNotes?: string;
     };
 }
 

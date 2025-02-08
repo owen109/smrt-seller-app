@@ -168,72 +168,130 @@ function setupHttpServer(automationManager: ReturnType<typeof createAutomationMa
     next();
   });
 
+  // New endpoint for printing labels
+  server.post('/print-label', async (req, res) => {
+    try {
+      const { fnsku, sku, asin, title, condition, quantity = 1 } = req.body;
+      
+      if (!fnsku || !sku || !asin) {
+        return res.status(400).json({ 
+          success: false, 
+          error: 'Missing required parameters (fnsku, sku, asin)' 
+        });
+      }
+
+      // Generate and print the label
+      const labelPath = await generateLabel({
+        fnsku,
+        sku,
+        asin,
+        title,
+        condition
+      });
+
+      // Print using unix-print with quantity
+      const success = await printPDFUnix(labelPath, automationManager.getPrinterName(), [
+        '-o fit-to-page',
+        '-o nocolor',
+        `-n ${Math.max(1, Math.min(100, parseInt(quantity) || 1))}` // Limit between 1 and 100 copies
+      ]);
+
+      // Send immediate response
+      res.status(200).json({ success: true });
+
+      // Log the result
+      if (!success) {
+        console.error('Failed to print label:', { fnsku, sku, asin, quantity });
+      }
+
+    } catch (error) {
+      console.error('Error printing label:', error);
+      // Still return 200 as requested
+      res.status(200).json({ success: true });
+    }
+  });
+
   // Routes without authentication for now
   server.post('/automation/start', async (req, res) => {
     try {
+      console.log(req.body.params);
       const request = req.body as AutomationRequest;
+      console.log('\n=== Starting New Automation ===');
+      console.log('Request details:', {
+        type: request.type,
+        sku: request.params?.sku,
+        asin: request.params?.asin,
+        price: request.params?.price,
+        condition: request.params?.condition,
+        conditionNotes: request.params?.conditionNotes
+      });
+      
+      console.log('Calling automationManager.startAutomation...');
       const id = await automationManager.startAutomation(request);
+      console.log('Received automation ID:', id);
 
       // If the ID is pending-auth, send a different response
       if (id === 'pending-auth') {
-        return res.json({ status: 'pending-auth', message: 'Authentication in progress' });
+        console.log('Authentication required, returning pending-auth status');
+        return res.json({ 
+          status: 'pending-auth', 
+          message: 'Authentication in progress',
+          timestamp: new Date().toISOString()
+        });
       }
 
-      console.log('Automation started with ID:', id);
-
-      // Wait for automation to complete
-      await new Promise<void>((resolve, reject) => {
-        let attempts = 0;
-        const maxAttempts = 300; // Increased to 5 minutes (300 seconds)
-        const checkInterval = 1000; // Check every second
-
-        const checkStatus = async () => {
-          try {
-            console.log(`Checking status attempt ${attempts + 1}/${maxAttempts} for ID: ${id}`);
-            const result = await automationManager.getAutomationResult(id);
-            
-            if (result) {
-              console.log('Got result:', result);
-              if (result.error) {
-                reject(new Error(result.error));
-              } else if (result.fnsku) {
-                resolve();
-              } else {
-                // Keep waiting if we have a result but no FNSKU yet
-                if (attempts++ < maxAttempts) {
-                  setTimeout(checkStatus, checkInterval);
-                } else {
-                  reject(new Error(`Timeout waiting for FNSKU after ${maxAttempts * checkInterval / 1000} seconds (5 minutes)`));
-                }
-              }
-            } else {
-              console.log('No result yet');
-              if (attempts++ < maxAttempts) {
-                setTimeout(checkStatus, checkInterval);
-              } else {
-                reject(new Error(`Timeout waiting for result after ${maxAttempts * checkInterval / 1000} seconds (5 minutes)`));
-              }
-            }
-          } catch (error) {
-            console.error('Error checking status:', error);
-            reject(error);
-          }
-        };
-
-        // Start checking
-        checkStatus();
-      });
-
-      // Get the final result
-      const result = await automationManager.getAutomationResult(id);
-      if (!result?.fnsku) {
+      // Get the result immediately after automation completes
+      console.log('Getting automation result for ID:', id);
+      const finalResult = await automationManager.getAutomationResult(id);
+      console.log('Raw automation result:', finalResult);
+      
+      if (!finalResult) {
+        console.log('No result found for automation ID:', id);
+        throw new Error(`No result found for automation ID: ${id}`);
+      }
+      
+      if (!finalResult.fnsku) {
+        // Check if there's an error in the result
+        if (finalResult.error) {
+          console.log('Error found in result:', finalResult.error);
+          return res.status(500).json({ 
+            success: false,
+            error: finalResult.error,
+            automationId: id,
+            timestamp: new Date().toISOString()
+          });
+        }
+        console.log('No FNSKU found in result:', finalResult);
         throw new Error('Failed to get FNSKU from automation');
       }
-      res.json({ id, fnsku: result.fnsku });
+
+      console.log('=== Automation Success ===');
+      console.log('Automation ID:', id);
+      console.log('FNSKU:', finalResult.fnsku);
+      console.log('Sending successful response');
+      
+      // Send response immediately with FNSKU
+      return res.json({ 
+        success: true,
+        id, 
+        fnsku: finalResult.fnsku,
+        message: 'Listing created successfully.',
+        timestamp: new Date().toISOString()
+      });
+
     } catch (error) {
-      console.error('Automation error:', error);
+      console.error('\n=== Automation Error ===');
+      console.error('Error details:', {
+        message: error instanceof Error ? error.message : 'Unknown error occurred',
+        stack: error instanceof Error ? error.stack : undefined
+      });
+      
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-      res.status(500).json({ error: errorMessage });
+      return res.status(500).json({ 
+        success: false,
+        error: errorMessage,
+        timestamp: new Date().toISOString()
+      });
     }
   });
 

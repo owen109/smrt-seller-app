@@ -18,6 +18,7 @@ export interface LabelData {
     fnsku: string;
     sku: string;
     asin: string;
+    title?: string;
     condition?: string;
     labelSize?: LabelSize;
 }
@@ -29,11 +30,12 @@ export async function generateLabel({
     fnsku,
     sku,
     asin,
+    title = '',
     condition = '',
     labelSize = 'STANDARD'
 }: LabelData): Promise<string> {
     try {
-        console.log('\nGenerating FNSKU label...');
+        console.log('\nGenerating FNSKU label for ', fnsku);
         
         const dimensions = LABEL_SIZES[labelSize];
 
@@ -99,11 +101,21 @@ export async function generateLabel({
         }
 
         // Add text lines with proper spacing
-        addSpacedText(`ASIN: ${asin}`, textStartY);
-        addSpacedText(`SKU: ${sku}`, textStartY + lineHeight);
-        addSpacedText(`FNSKU: ${fnsku}`, textStartY + (lineHeight * 2));
-        if (condition) {
-            addSpacedText(`Condition: ${condition}`, textStartY + (lineHeight * 3));
+        if (title) {
+            addSpacedText(`Title: ${title.substring(0, 50)}${title.length > 50 ? '...' : ''}`, textStartY);
+            addSpacedText(`ASIN: ${asin}`, textStartY + lineHeight);
+            addSpacedText(`SKU: ${sku}`, textStartY + (lineHeight * 2));
+            addSpacedText(`FNSKU: ${fnsku}`, textStartY + (lineHeight * 3));
+            if (condition) {
+                addSpacedText(`Condition: ${condition}`, textStartY + (lineHeight * 4));
+            }
+        } else {
+            addSpacedText(`ASIN: ${asin}`, textStartY);
+            addSpacedText(`SKU: ${sku}`, textStartY + lineHeight);
+            addSpacedText(`FNSKU: ${fnsku}`, textStartY + (lineHeight * 2));
+            if (condition) {
+                addSpacedText(`Condition: ${condition}`, textStartY + (lineHeight * 3));
+            }
         }
 
         // Save the PDF to the app's temp directory
