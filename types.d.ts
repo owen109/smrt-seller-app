@@ -25,6 +25,9 @@ type AutomationStatus = {
     details?: {
         sku?: string;
         asin?: string;
+        price?: number;
+        condition?: string;
+        conditionNotes?: string;
     };
 }
 

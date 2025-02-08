@@ -370,11 +370,18 @@ class AutomationManager {
     }
 
     private async handleLoginRequired(triggeringAutomationId?: string) {
+        console.log('\n=== Starting handleLoginRequired ===');
+        console.log('Triggering Automation ID:', triggeringAutomationId);
+        console.log('Current isReauthenticating state:', this.isReauthenticating);
+        console.log('Current pending automations:', this.pendingAutomations);
+
         if (this.isReauthenticating) {
+            console.log('Already re-authenticating, waiting for completion...');
             // If already reauthorizing, just wait for it to complete
             await new Promise<void>((resolve, reject) => {
                 const checkReauth = () => {
                     if (!this.isReauthenticating) {
+                        console.log('Re-authentication completed while waiting');
                         resolve();
                     } else {
                         setTimeout(checkReauth, 1000);
@@ -391,30 +398,47 @@ class AutomationManager {
         try {
             // Store the triggering automation's details before cleanup
             let triggeringAutomation: PendingAutomation | undefined;
-            if (triggeringAutomationId) {
-                const automation = this.runningAutomations.get(triggeringAutomationId);
-                if (automation) {
-                    triggeringAutomation = {
-                        request: {
-                            type: automation.status.details?.asin ? 'createListing' : 'inventory',
+            
+            // Pause all other running automations
+            for (const [id, automation] of this.runningAutomations.entries()) {
+                if (id === triggeringAutomationId) {
+                    // Store details of the triggering automation
+                    console.log('\nFetching triggering automation details...');
+                    console.log('Found automation:', automation.status);
+                    
+                    if (automation) {
+                        console.log('\nCreating original request from automation details:');
+                        console.log('Status details:', automation.status.details);
+                        
+                        // Get the original request from the automation details
+                        const originalRequest = {
+                            type: 'createListing' as const,
                             params: {
                                 sku: automation.status.details?.sku,
                                 asin: automation.status.details?.asin,
-                                // Add other params as needed
+                                price: automation.status.details?.price,
+                                condition: automation.status.details?.condition as "Used - Like New" | "Used - Very Good" | "Used - Good" | "Used - Acceptable",
+                                conditionNotes: automation.status.details?.conditionNotes
                             }
-                        },
-                        startTime: Date.now(),
-                        retryCount: 0,
-                        originalId: triggeringAutomationId
-                    };
-                    // Clean up only the triggering automation
-                    await this.cleanupAutomation(triggeringAutomationId);
-                }
-            }
+                        };
 
-            // Pause all other running automations
-            for (const [id, automation] of this.runningAutomations.entries()) {
-                if (id !== triggeringAutomationId) {
+                        console.log('Created original request:', originalRequest);
+
+                        triggeringAutomation = {
+                            request: originalRequest,
+                            startTime: Date.now(),
+                            retryCount: 0,
+                            originalId: triggeringAutomationId
+                        };
+
+                        console.log('\nCreated triggering automation:', triggeringAutomation);
+                        
+                        // Clean up only the triggering automation
+                        await this.cleanupAutomation(id);
+                    }
+                } else {
+                    // Pause other automations
+                    console.log(`Pausing automation ${id}...`);
                     this.updateAutomationStatus(automation, {
                         status: 'paused',
                         message: 'Paused for re-authentication...'
@@ -424,7 +448,9 @@ class AutomationManager {
 
             // Add only the triggering automation to pending automations if it exists
             if (triggeringAutomation) {
+                console.log('\nAdding triggering automation to pending list');
                 this.pendingAutomations = [triggeringAutomation];
+                console.log('Current pending automations:', this.pendingAutomations);
             }
 
             // Create popup window
@@ -790,50 +816,69 @@ class AutomationManager {
     }
 
     private async retryPendingAutomations() {
+        console.log('\n=== Starting retryPendingAutomations ===');
+        console.log('Current pending automations:', this.pendingAutomations);
+        
         this.isReauthenticating = false;
         
         // Process all pending automations (should only be the triggering one)
         const automations = [...this.pendingAutomations];
+        
+        // Clear pending automations immediately to prevent duplicates
         this.pendingAutomations = [];
+
+        console.log('\nProcessing automations:', automations);
 
         // Create a map to track results by original ID
         const resultPromises = new Map<string, ReturnType<typeof this.createResolvablePromise<RunningAutomation['result']>>>();
 
         // Start the triggering automation
         const retryPromises = automations.map(async (pending) => {
+            console.log('\nRetrying automation:', pending);
             try {
                 // Create a new automation instance with a new ID
                 const newId = uuidv4();
+                console.log('Created new automation ID:', newId);
                 
+                console.log('Creating automation with request:', pending.request);
                 const automation = await this.createAutomation(newId, pending.request);
+                
+                // Store the automation in running automations
+                console.log('Setting new automation in running automations map');
                 this.runningAutomations.set(newId, automation);
                 
                 // Run the automation
+                console.log('Running automation...');
                 const result = await this.runAutomation(automation, pending.request);
+                console.log('Automation result:', result);
                 
                 // If this automation had an original ID, store the result
                 if (pending.originalId) {
+                    console.log('Storing result for original ID:', pending.originalId);
                     this.completedResults.set(pending.originalId, result);
                     // Resolve the promise for this original ID
                     const resolver = resultPromises.get(pending.originalId);
                     if (resolver) {
+                        console.log('Resolving promise for original ID');
                         resolver.resolve(result);
                     }
                 }
                 
                 return { success: true, id: newId, originalId: pending.originalId };
             } catch (error) {
-                log.error('Failed to retry automation:', error);
+                console.error('Failed to retry automation:', error);
                 
                 // If this automation had an original ID, store the error
                 if (pending.originalId) {
                     const errorResult = {
                         error: error instanceof Error ? error.message : 'Unknown error occurred'
                     };
+                    console.log('Storing error result for original ID:', pending.originalId);
                     this.completedResults.set(pending.originalId, errorResult);
                     // Reject the promise for this original ID
                     const resolver = resultPromises.get(pending.originalId);
                     if (resolver) {
+                        console.log('Rejecting promise for original ID');
                         resolver.reject(error instanceof Error ? error : new Error('Unknown error occurred'));
                     }
                 }
@@ -841,20 +886,20 @@ class AutomationManager {
             }
         });
 
-        // Wait for the triggering automation to complete
-        await Promise.allSettled(retryPromises);
+        // Wait for all retries to complete
+        console.log('\nWaiting for retry promises to complete...');
+        const results = await Promise.allSettled(retryPromises);
+        console.log('Retry results:', results);
 
         // Resume all paused automations
+        console.log('\nResuming paused automations...');
         for (const [id, automation] of this.runningAutomations.entries()) {
             if (automation.status.status === 'paused') {
-                // Resume the automation by updating its status
+                console.log(`Resuming automation ${id}...`);
                 this.updateAutomationStatus(automation, {
                     status: 'running',
-                    message: 'Resuming automation...'
+                    message: 'Resuming after re-authentication...'
                 });
-
-                // Refresh the page to ensure we have a fresh session
-                await automation.page.reload();
             }
         }
     }
@@ -1107,7 +1152,16 @@ class AutomationManager {
     }
 
     private async handleCreateListing(automation: RunningAutomation, params?: AutomationRequest['params']): Promise<{ fnsku: string }> {
+        console.log('\n=== Starting handleCreateListing ===');
+        console.log('Automation:', automation.id);
+        console.log('Params:', params);
+
         if (!params?.asin || !params?.sku || !params?.price) {
+            console.error('Missing required parameters:', {
+                asin: params?.asin,
+                sku: params?.sku,
+                price: params?.price
+            });
             throw new Error('Missing required parameters for listing creation');
         }
 
@@ -1116,20 +1170,30 @@ class AutomationManager {
         try {
             this.updateAutomationStatus(automation, {
                 message: 'Navigating to listing creation page...',
-                progress: 20
+                progress: 20,
+                details: {
+                    ...automation.status.details,
+                    ...params
+                }
             });
 
+            console.log('\nNavigating to listing page...');
             // Navigate to the listing creation page
             await page.goto(`https://sellercentral.amazon.com/abis/listing/syh/offer?asin=${params.asin}`, {
                 waitUntil: 'domcontentloaded',
                 timeout: 30000
             });
 
+            console.log('Current URL:', page.url());
+
             // Check if we're on a login page immediately
             const isLoginPage = page.url().includes('signin') || 
                               await page.locator('input[type="password"]').count() > 0;
             
+            console.log('Is login page:', isLoginPage);
+            
             if (isLoginPage) {
+                console.log('\nDetected login page, starting re-authentication...');
                 // Handle login and wait for it to complete, passing this automation's ID
                 await this.handleLoginRequired(automation.id);
                 
