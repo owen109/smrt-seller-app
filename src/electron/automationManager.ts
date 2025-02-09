@@ -5,6 +5,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { ipcWebContentsSend } from './util.js';
 import { BrowserWindow } from 'electron';
 import fs from 'fs/promises';
+import { existsSync } from 'fs';
 import { generateLabel } from './labelGenerator.js';
 import { print, isPrintComplete } from 'unix-print';
 import { dialog } from 'electron';
@@ -90,7 +91,12 @@ class AutomationManager {
             baseDir,
             profilesPath: this.profilesPath,
             configPath: this.configPath,
-            isPackaged: app.isPackaged
+            isPackaged: app.isPackaged,
+            platform: process.platform,
+            arch: process.arch,
+            electronVersion: process.versions.electron,
+            chromeVersion: process.versions.chrome,
+            nodeVersion: process.version
         });
         
         this.initializeDirectories();
@@ -108,20 +114,23 @@ class AutomationManager {
             const defaultProfilePath = path.join(this.profilesPath, 'default');
             await fs.mkdir(defaultProfilePath, { recursive: true });
             
-            // Create empty cookies.sqlite if it doesn't exist
-            const cookiesPath = path.join(defaultProfilePath, 'cookies.sqlite');
+            // Create storage.json if it doesn't exist
+            const storagePath = path.join(this.profilesPath, 'storage.json');
             try {
-                await fs.access(cookiesPath);
-                log.info('cookies.sqlite already exists');
+                await fs.access(storagePath);
+                log.info('storage.json already exists');
             } catch {
-                log.info('Creating empty cookies.sqlite');
-                await fs.writeFile(cookiesPath, '');
+                log.info('Creating empty storage.json');
+                await fs.writeFile(storagePath, JSON.stringify({
+                    cookies: [],
+                    origins: []
+                }));
             }
 
             log.info('Directory initialization complete', {
                 profilesPath: this.profilesPath,
                 defaultProfilePath: defaultProfilePath,
-                cookiesPath: cookiesPath
+                storagePath: storagePath
             });
         } catch (error) {
             log.error('Failed to create profile directories:', error);
@@ -175,93 +184,191 @@ class AutomationManager {
         const id = uuidv4();
         const defaultProfilePath = path.join(this.profilesPath, 'default');
 
-        const browser = await firefox.launch({
-            headless: false,
-            firefoxUserPrefs: {
-                'browser.sessionstore.resume_from_crash': false,
-                'browser.sessionstore.max_resumed_crashes': 0
-            }
-        });
-
-        const context = await browser.newContext({
-            userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:122.0) Gecko/20100101 Firefox/122.0',
-            viewport: { width: 1500, height: 900 },
-            screen: { width: 1500, height: 900 }
-        });
-
-        const page = await context.newPage();
-        
-        const automation: RunningAutomation = {
-            id,
-            browser,
-            page,
-            status: {
-                id,
-                status: 'running',
-                progress: 0
-            }
-        };
-
-        this.runningAutomations.set(id, automation);
-        
         try {
-            this.updateAutomationStatus(automation, {
-                message: 'Opening Amazon Seller Central...',
-                progress: 20
+            log.info('Starting setup process', {
+                id,
+                defaultProfilePath,
+                isPackaged: app.isPackaged,
+                platform: process.platform,
+                arch: process.arch,
+                electronVersion: process.versions.electron,
+                chromeVersion: process.versions.chrome,
+                nodeVersion: process.version
             });
 
-            await page.goto('https://sellercentral.amazon.com/');
-            
-            this.updateAutomationStatus(automation, {
-                message: 'Please log in to Seller Central. Setup will complete automatically...',
-                progress: 50
-            });
+            // Get the correct Firefox path based on environment
+            const getFirefoxPath = () => {
+                if (app.isPackaged) {
+                    // In production, use the bundled Firefox from resources
+                    return path.join(
+                        app.getAppPath(),
+                        '..',
+                        'ms-playwright',
+                        'firefox-1471',
+                        'firefox',
+                        process.platform === 'darwin' ? 'Nightly.app/Contents/MacOS/firefox' : 
+                        process.platform === 'win32' ? 'firefox.exe' : 'firefox'
+                    );
+                }
+                // In development, use the cache path
+                return path.join(
+                    app.getPath('home'),
+                    'Library',
+                    'Caches',
+                    'ms-playwright',
+                    'firefox-1471',
+                    'firefox',
+                    process.platform === 'darwin' ? 'Nightly.app/Contents/MacOS/firefox' :
+                    process.platform === 'win32' ? 'firefox.exe' : 'firefox'
+                );
+            };
 
-            // Wait for navigation to home page after login
-            await page.waitForURL(url => {
-                const urlStr = url.toString();
-                return urlStr.includes('sellercentral.amazon.com') && 
-                    (urlStr.includes('/home') || urlStr.includes('/dashboard') || urlStr.includes('/inventory'));
-            }, { timeout: 300000 }); // 5 minute timeout
+            const firefoxPath = getFirefoxPath();
+            log.info('Using Firefox path:', firefoxPath);
 
-            // Save the browser state
-            await context.storageState({ 
-                path: path.join(this.profilesPath, 'storage.json') 
-            });
-
-            // Save setup status
-            await this.saveConfig({
-                isConfigured: true,
-                lastLogin: new Date().toISOString()
-            });
-
-            this.updateAutomationStatus(automation, {
-                message: 'Setup completed successfully! You can now close this window.',
-                progress: 100,
-                status: 'completed'
-            });
-
-            // Wait a brief moment for the user to see the success message
-            await new Promise(resolve => setTimeout(resolve, 2000));
-
-            // Cleanup and close browser
-            await this.cleanupAutomation(id);
-
-            return id;
-
-        } catch (error) {
-            console.error('Setup error:', error);
-            const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-            
-            if (this.runningAutomations.has(id)) {
-                this.updateAutomationStatus(automation, {
-                    status: 'error',
-                    message: `Setup failed: ${errorMessage}`
-                });
+            // Check if Firefox exists
+            try {
+                await fs.access(firefoxPath);
+                log.info('Firefox executable found at:', firefoxPath);
+            } catch (error) {
+                log.error('Firefox executable not found:', error);
+                throw new Error(`Firefox executable not found at ${firefoxPath}. Please ensure the application is properly installed.`);
             }
+
+            log.info('Launching Firefox with preferences:', {
+                headless: false,
+                firefoxUserPrefs: {
+                    'browser.sessionstore.resume_from_crash': false,
+                    'browser.sessionstore.max_resumed_crashes': 0
+                },
+                executablePath: firefoxPath
+            });
+
+            const browser = await firefox.launch({
+                headless: false,
+                executablePath: firefoxPath,
+                firefoxUserPrefs: {
+                    'browser.sessionstore.resume_from_crash': false,
+                    'browser.sessionstore.max_resumed_crashes': 0
+                }
+            });
+
+            log.info('Browser launched successfully. Creating browser context...');
+
+            const context = await browser.newContext({
+                userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:122.0) Gecko/20100101 Firefox/122.0',
+                viewport: { width: 1500, height: 900 },
+                screen: { width: 1500, height: 900 }
+            }).catch(error => {
+                log.error('Failed to create browser context:', error);
+                throw new Error(`Context creation failed: ${error.message}`);
+            });
+
+            log.info('Browser context created successfully. Creating new page...');
+
+            const page = await context.newPage().catch(error => {
+                log.error('Failed to create new page:', error);
+                throw new Error(`Page creation failed: ${error.message}`);
+            });
             
-            await this.cleanupAutomation(id);
-            throw error;
+            log.info('New page created successfully');
+            
+            const automation: RunningAutomation = {
+                id,
+                browser,
+                page,
+                status: {
+                    id,
+                    status: 'running',
+                    progress: 0
+                }
+            };
+
+            this.runningAutomations.set(id, automation);
+            log.info('Automation registered with ID:', id);
+            
+            try {
+                this.updateAutomationStatus(automation, {
+                    message: 'Opening Amazon Seller Central...',
+                    progress: 20
+                });
+
+                log.info('Navigating to Amazon Seller Central...');
+                await page.goto('https://sellercentral.amazon.com/', {
+                    waitUntil: 'domcontentloaded',
+                    timeout: 30000
+                }).catch(error => {
+                    log.error('Failed to navigate to Amazon:', error);
+                    throw new Error(`Navigation failed: ${error.message}`);
+                });
+                
+                log.info('Successfully loaded Amazon Seller Central');
+                
+                this.updateAutomationStatus(automation, {
+                    message: 'Please log in to Seller Central. Setup will complete automatically...',
+                    progress: 50
+                });
+
+                log.info('Waiting for successful login and navigation...');
+                // Wait for navigation to home page after login
+                await page.waitForURL(url => {
+                    const urlStr = url.toString();
+                    const isValidUrl = urlStr.includes('sellercentral.amazon.com') && 
+                        (urlStr.includes('/home') || urlStr.includes('/dashboard') || urlStr.includes('/inventory'));
+                    log.info('URL check:', { url: urlStr, isValid: isValidUrl });
+                    return isValidUrl;
+                }, { timeout: 300000 }); // 5 minute timeout
+
+                log.info('Login successful, saving browser state...');
+                // Save the browser state
+                await context.storageState({ 
+                    path: path.join(this.profilesPath, 'storage.json') 
+                }).catch(error => {
+                    log.error('Failed to save browser state:', error);
+                    throw new Error(`State save failed: ${error.message}`);
+                });
+
+                log.info('Browser state saved successfully');
+
+                // Save setup status
+                await this.saveConfig({
+                    isConfigured: true,
+                    lastLogin: new Date().toISOString()
+                });
+
+                log.info('Setup completed successfully');
+
+                this.updateAutomationStatus(automation, {
+                    message: 'Setup completed successfully! You can now close this window.',
+                    progress: 100,
+                    status: 'completed'
+                });
+
+                // Wait a brief moment for the user to see the success message
+                await new Promise(resolve => setTimeout(resolve, 2000));
+
+                // Cleanup and close browser
+                await this.cleanupAutomation(id);
+
+                return id;
+
+            } catch (error) {
+                log.error('Setup process error:', error);
+                const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+                
+                if (this.runningAutomations.has(id)) {
+                    this.updateAutomationStatus(automation, {
+                        status: 'error',
+                        message: `Setup failed: ${errorMessage}. Check if Firefox is installed and up to date.`
+                    });
+                }
+                
+                await this.cleanupAutomation(id);
+                throw error;
+            }
+        } catch (error) {
+            log.error('Critical setup error:', error);
+            throw new Error(`Setup failed: ${error instanceof Error ? error.message : 'Unknown error occurred'}. Please ensure Firefox is installed and up to date.`);
         }
     }
 
@@ -998,68 +1105,22 @@ class AutomationManager {
     }
 
     private async createAutomation(id: string, request: AutomationRequest): Promise<RunningAutomation> {
-        const browser = await firefox.launch({
-            headless: false,
+        const browser = await this.launchBrowser({
             firefoxUserPrefs: {
                 'dom.webdriver.enabled': false,
                 'privacy.trackingprotection.enabled': false,
                 'network.cookie.cookieBehavior': 0,
-                'geo.provider.network.url': 'https://location.services.mozilla.com/v1/geolocate?key=%MOZILLA_API_KEY%',
-                'geo.provider.use_gpsd': false,
-                'geo.provider.use_geoclue': false,
                 'intl.accept_languages': 'en-US, en',
                 'privacy.resistFingerprinting': false,
-                'webgl.disabled': false,
-                'dom.storage.enabled': true,
-                'dom.indexedDB.enabled': true,
-                // Keep existing performance optimizations
                 'browser.cache.disk.enable': false,
                 'browser.cache.memory.enable': true,
-                'browser.cache.memory.capacity': 524288,
                 'browser.sessionhistory.max_entries': 0,
-                'network.http.max-persistent-connections-per-server': 10,
-                'network.http.max-connections': 50,
-                'content.notify.interval': 500000,
-                'content.switch.threshold': 250000,
-                'nglayout.initialpaint.delay': 0,
-                'dom.ipc.processCount': 1,
-                'javascript.options.mem.gc_incremental_slice_ms': 1,
-                // Add aggressive startup optimizations
-                'browser.startup.homepage': 'about:blank',
-                'browser.startup.page': 0,
-                'browser.sessionstore.enabled': false,
-                'extensions.enabledScopes': 0,
-                'security.fileuri.strict_origin_policy': false,
-                'browser.shell.checkDefaultBrowser': false,
-                'browser.newtabpage.enabled': false,
-                'browser.newtab.preload': false,
-                'browser.aboutConfig.showWarning': false,
-                'gfx.canvas.accelerated': false,
-                'layers.acceleration.disabled': true,
-                'media.hardware-video-decoding.enabled': false,
-                'network.dns.disableIPv6': true,
-                'network.proxy.type': 0,
-                'permissions.default.geo': 2,
-                'dom.serviceWorkers.enabled': false,
-                'dom.push.enabled': false,
-                'browser.download.manager.retention': 0,
-                'browser.helperApps.deleteTempFileOnExit': true,
-                'browser.uitour.enabled': false,
-                'toolkit.telemetry.enabled': false,
-                'browser.ping-centre.telemetry': false,
-                'browser.discovery.enabled': false
+                'dom.ipc.processCount': 1
             }
         });
 
-        const context = await browser.newContext({
-            storageState: path.join(this.profilesPath, 'storage.json'),
-            viewport: { width: 1500, height: 900 },
-            screen: { width: 1500, height: 900 }
-        });
-
+        const context = await this.createBrowserContext(browser);
         const page = await context.newPage();
-        
-        // Set zoom level to zoom out (0.67 = ~67% zoom)
 
         return {
             id,
@@ -1075,6 +1136,93 @@ class AutomationManager {
                 }
             }
         };
+    }
+
+    private async launchBrowser(options: any = {}): Promise<Browser> {
+        const firefoxPath = this.getFirefoxPath();
+        
+        try {
+            await fs.access(firefoxPath);
+            log.info('Firefox executable found at:', firefoxPath);
+        } catch (error) {
+            log.error('Firefox executable not found:', error);
+            throw new Error(`Firefox executable not found at ${firefoxPath}. Please ensure the application is properly installed.`);
+        }
+
+        const browser = await firefox.launch({
+            headless: false,
+            executablePath: firefoxPath,
+            firefoxUserPrefs: {
+                'browser.sessionstore.resume_from_crash': false,
+                'browser.sessionstore.max_resumed_crashes': 0,
+                'browser.shell.checkDefaultBrowser': false,
+                'browser.startup.homepage': 'about:blank',
+                ...options.firefoxUserPrefs
+            },
+            ...options
+        });
+
+        return browser;
+    }
+
+    private getFirefoxPath(): string {
+        const getPlaywrightPath = () => {
+            if (app.isPackaged) {
+                // In production, use the bundled Firefox from resources
+                return path.join(
+                    app.getAppPath(),
+                    '..',
+                    'ms-playwright'
+                );
+            }
+            // In development, use the cache path
+            return path.join(
+                app.getPath('home'),
+                'Library',
+                'Caches',
+                'ms-playwright'
+            );
+        };
+
+        const playwrightPath = getPlaywrightPath();
+        const firefoxPath = path.join(
+            playwrightPath,
+            'firefox-1471',
+            'firefox',
+            process.platform === 'darwin' ? 'Nightly.app/Contents/MacOS/firefox' :
+            process.platform === 'win32' ? 'firefox.exe' : 'firefox'
+        );
+
+        log.info('Resolved Firefox path:', {
+            playwrightPath,
+            firefoxPath,
+            exists: existsSync(firefoxPath)
+        });
+
+        return firefoxPath;
+    }
+
+    private async createBrowserContext(browser: Browser): Promise<any> {
+        const context = await browser.newContext({
+            viewport: { width: 1500, height: 900 },
+            screen: { width: 1500, height: 900 },
+            userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:122.0) Gecko/20100101 Firefox/122.0',
+            // Load stored state if available
+            storageState: path.join(this.profilesPath, 'storage.json')
+        });
+
+        // Set up context event handlers
+        context.on('page', async page => {
+            page.on('console', msg => {
+                log.info('Browser console:', msg.text());
+            });
+            
+            page.on('pageerror', error => {
+                log.error('Browser page error:', error);
+            });
+        });
+
+        return context;
     }
 
     private async runAutomation(automation: RunningAutomation, request: AutomationRequest): Promise<RunningAutomation['result']> {

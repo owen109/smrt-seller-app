@@ -21,7 +21,7 @@ export function createMenu(mainWindow: BrowserWindow){
                 click: () => {
                     mainWindow.webContents.openDevTools();
                 },
-                visible: isDev()
+                visible: true//isDev()
             }
 
         ]

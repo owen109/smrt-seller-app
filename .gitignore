@@ -26,3 +26,4 @@ dist-electron
 *.njsproj
 *.sln
 *.sw?
+playwright-browsers/

@@ -7,7 +7,12 @@
     ],
     "extraResources": [
        "dist-electron/preload.cjs",
-       "src/assets/**"
+       "src/assets/**",
+       {
+         "from": "playwright-browsers",
+         "to": "ms-playwright",
+         "filter": ["**/*"]
+       }
     ],
     "mac": {
         "target": "dmg"

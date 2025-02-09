@@ -73,6 +73,15 @@ function App() {
     } catch (error) {
       console.error('Setup failed:', error);
       setIsSettingUp(false);
+      // Show error message to user
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      dialog.showErrorBox('Setup Failed', 
+        `${errorMessage}\n\nPlease ensure:\n` +
+        '1. Firefox is installed and up to date\n' +
+        '2. You have a stable internet connection\n' +
+        '3. Your system meets the minimum requirements\n\n' +
+        'If the problem persists, please try restarting the application.'
+      );
     }
   };
 
