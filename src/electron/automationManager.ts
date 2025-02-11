@@ -1150,7 +1150,7 @@ class AutomationManager {
         }
 
         const browser = await firefox.launch({
-            headless: false,
+            headless: true,
             executablePath: firefoxPath,
             firefoxUserPrefs: {
                 'browser.sessionstore.resume_from_crash': false,
@@ -1463,10 +1463,358 @@ class AutomationManager {
             if (!fnskuValue) {
                 throw new Error('Could not extract valid FNSKU from page');
             }
+            
 
             // Store the result immediately with the non-null FNSKU
             const result = { fnsku: fnskuValue };
             automation.result = result;
+
+            // Handle prep steps
+            console.log('Handling prep steps...');
+            await page.getByTestId('sku-action-info-prep-missing-link').locator('a').click();
+            
+            // Wait for first Save button to be visible and clickable
+            await page.getByRole('button', { name: 'Save' }).waitFor({ state: 'visible' });
+            await page.getByRole('button', { name: 'Save' }).click();
+            
+            // Wait a moment for UI to update after first save
+            await page.waitForTimeout(200);
+            
+            // Check if second Save button exists and is visible before clicking
+            const secondSaveButton = page.getByRole('button', { name: 'Save' });
+            const hasSecondSave = await secondSaveButton.count() > 0;
+            if (hasSecondSave) {
+                await secondSaveButton.waitFor({ state: 'visible' });
+                await secondSaveButton.click();
+            }
+
+            // Wait for any animations or transitions to complete
+            await page.waitForTimeout(1200);
+
+            // Check for missing ASIN data link
+            console.log('Checking for missing ASIN data link...');
+            const missingDataLink = page.getByRole('link', { name: 'Data is missing for ASIN' });
+            const hasLink = await missingDataLink.count() > 0;
+            if (hasLink) {
+                console.log('Found missing ASIN data link, clicking it...');
+                await missingDataLink.click();
+                await page.waitForTimeout(1000);
+
+                // Create popup window for dimensions input
+                const popup = new BrowserWindow({
+                    width: 500,
+                    height: 480,
+                    frame: false,
+                    resizable: false,
+                    alwaysOnTop: true,
+                    skipTaskbar: false,
+                    webPreferences: {
+                        nodeIntegration: true,
+                        contextIsolation: false,
+                        webSecurity: false
+                    },
+                    backgroundColor: '#ffffff',
+                    show: false
+                });
+
+                // Position window in center of screen
+                popup.center();
+
+                // Create the HTML content for dimensions input
+                const htmlContent = `
+                    <!DOCTYPE html>
+                    <html>
+                    <head>
+                        <style>
+                            body {
+                                margin: 0;
+                                padding: 0;
+                                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+                                background-color: white;
+                                overflow: hidden;
+                                user-select: none;
+                                -webkit-app-region: drag;
+                            }
+
+                            header {
+                                width: 100%;
+                                text-align: left;
+                                padding: 0.75rem;
+                                box-sizing: border-box;
+                                background-color: #0495F6;
+                                display: flex;
+                                justify-content: space-between;
+                                align-items: center;
+                            }
+
+                            .title {
+                                color: white;
+                                font-size: 16px;
+                                margin-left: 3rem;
+                                font-weight: 500;
+                            }
+
+                            .window-controls {
+                                display: flex;
+                                gap: 0.5rem;
+                                -webkit-app-region: no-drag;
+                            }
+
+                            .window-controls button {
+                                all: unset;
+                                border-radius: 50%;
+                                width: 12px;
+                                height: 12px;
+                                cursor: pointer;
+                            }
+
+                            #close {
+                                background-color: #FF5F57;
+                            }
+
+                            #minimize {
+                                background-color: #FEBC2E;
+                            }
+
+                            .content {
+                                padding: 2rem;
+                                text-align: center;
+                            }
+
+                            .sku-info {
+                                background-color: #f5f5f5;
+                                border-radius: 8px;
+                                padding: 1rem;
+                                margin-bottom: 1.5rem;
+                                text-align: left;
+                            }
+
+                            .sku-info h2 {
+                                margin: 0;
+                                font-size: 14px;
+                                color: #666;
+                            }
+
+                            .sku-info p {
+                                margin: 0.5rem 0 0 0;
+                                font-size: 16px;
+                                color: #333;
+                                font-weight: 500;
+                            }
+
+                            .dimensions-grid {
+                                display: grid;
+                                grid-template-columns: repeat(2, 1fr);
+                                gap: 1rem;
+                                margin-bottom: 1.5rem;
+                            }
+
+                            .input-group {
+                                text-align: left;
+                            }
+
+                            .input-group label {
+                                display: block;
+                                margin-bottom: 0.5rem;
+                                font-size: 14px;
+                                color: #333;
+                                font-weight: 500;
+                            }
+
+                            .input-group input {
+                                width: 100%;
+                                padding: 0.75rem;
+                                border: 1px solid #ddd;
+                                border-radius: 6px;
+                                font-size: 14px;
+                                -webkit-app-region: no-drag;
+                                box-sizing: border-box;
+                            }
+
+                            .input-group input:focus {
+                                outline: none;
+                                border-color: #0495F6;
+                                box-shadow: 0 0 0 2px rgba(4, 149, 246, 0.1);
+                            }
+
+                            .buttons {
+                                display: flex;
+                                gap: 1rem;
+                                justify-content: flex-end;
+                                margin-top: 2rem;
+                                -webkit-app-region: no-drag;
+                            }
+
+                            .button {
+                                padding: 0.75rem 2rem;
+                                border-radius: 6px;
+                                border: none;
+                                font-size: 14px;
+                                font-weight: 500;
+                                cursor: pointer;
+                                transition: all 0.2s;
+                            }
+
+                            .primary {
+                                background-color: #0495F6;
+                                color: white;
+                            }
+
+                            .primary:hover {
+                                background-color: #0378cc;
+                                transform: translateY(-1px);
+                            }
+
+                            .unit {
+                                color: #666;
+                                font-size: 13px;
+                                margin-left: 4px;
+                            }
+                        </style>
+                    </head>
+                    <body>
+                        <header>
+                            <div class="window-controls">
+                                <button id="close"></button>
+                                <button id="minimize"></button>
+                            </div>
+                            <span class="title">Enter Product Dimensions</span>
+                            <div style="width: 3rem"></div>
+                        </header>
+                        
+                        <div class="content">
+                            <div class="sku-info">
+                                <h2>Product Information</h2>
+                                <p>SKU: ${params?.sku || 'Unknown'}</p>
+                                <p>ASIN: ${params?.asin || 'Unknown'}</p>
+                            </div>
+
+                            <div class="dimensions-grid">
+                                <div class="input-group">
+                                    <label>Length<span class="unit">(inches)</span></label>
+                                    <input type="number" id="length" step="0.1" min="0" required placeholder="0.0">
+                                </div>
+                                <div class="input-group">
+                                    <label>Width<span class="unit">(inches)</span></label>
+                                    <input type="number" id="width" step="0.1" min="0" required placeholder="0.0">
+                                </div>
+                                <div class="input-group">
+                                    <label>Height<span class="unit">(inches)</span></label>
+                                    <input type="number" id="height" step="0.1" min="0" required placeholder="0.0">
+                                </div>
+                                <div class="input-group">
+                                    <label>Weight<span class="unit">(lbs)</span></label>
+                                    <input type="number" id="weight" step="0.1" min="0" required placeholder="0.0">
+                                </div>
+                            </div>
+
+                            <div class="buttons">
+                                <button class="button primary" id="submit">Save Dimensions</button>
+                            </div>
+                        </div>
+
+                        <script>
+                            const electron = require('electron');
+                            const { ipcRenderer } = electron;
+
+                            document.getElementById('close').addEventListener('click', () => {
+                                ipcRenderer.send('dimensions-response', 'cancel');
+                            });
+
+                            document.getElementById('minimize').addEventListener('click', () => {
+                                ipcRenderer.send('minimize-dimensions');
+                            });
+
+                            document.getElementById('submit').addEventListener('click', () => {
+                                const dimensions = {
+                                    length: document.getElementById('length').value,
+                                    width: document.getElementById('width').value,
+                                    height: document.getElementById('height').value,
+                                    weight: document.getElementById('weight').value
+                                };
+                                ipcRenderer.send('dimensions-response', dimensions);
+                            });
+
+                            // Handle enter key
+                            document.addEventListener('keypress', (e) => {
+                                if (e.key === 'Enter') {
+                                    document.getElementById('submit').click();
+                                }
+                            });
+
+                            // Focus first input on load
+                            window.onload = () => {
+                                document.getElementById('length').focus();
+                            };
+                        </script>
+                    </body>
+                    </html>
+                `;
+
+                // Load the HTML content
+                popup.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(htmlContent)}`);
+
+                // Show window once it's ready
+                popup.once('ready-to-show', () => {
+                    popup.show();
+                });
+
+                // Handle window minimize
+                ipcMain.once('minimize-dimensions', () => {
+                    popup.minimize();
+                });
+
+                // Define the dimensions type
+                type Dimensions = {
+                    length: string;
+                    width: string;
+                    height: string;
+                    weight: string;
+                };
+
+                // Wait for user input
+                const dimensions = await new Promise<Dimensions>((resolve, reject) => {
+                    ipcMain.once('dimensions-response', (_event, response: Dimensions | 'cancel') => {
+                        popup.close();
+                        if (response === 'cancel') {
+                            reject(new Error('Dimensions input cancelled'));
+                        } else {
+                            resolve(response);
+                        }
+                    });
+
+                    popup.on('closed', () => {
+                        reject(new Error('Dimensions input cancelled'));
+                    });
+                });
+
+                // Fill in the dimensions
+                console.log('Filling in dimensions:', dimensions);
+                await page.locator('#katal-id-181').click();
+                await page.locator('#katal-id-181').fill(dimensions.length.toString());
+                await page.locator('#katal-id-182').click();
+                await page.locator('#katal-id-182').fill(dimensions.width.toString());
+                await page.locator('#katal-id-183').click();
+                await page.locator('#katal-id-183').fill(dimensions.height.toString());
+                await page.locator('#katal-id-184').click();
+                await page.locator('#katal-id-184').fill(dimensions.weight.toString());
+                
+                // Click the save dimensions button
+                console.log('Clicking Save button in dimensions dialog...');
+                await page.getByTestId('save-dimensions-button').click();
+                await page.waitForTimeout(1000);
+
+                // Click the additional save buttons twice
+                const saveButton = page.getByRole('button', { name: 'Save' });
+                await saveButton.waitFor({ state: 'visible' });
+                await saveButton.click();
+                await page.waitForTimeout(1000);
+
+                await saveButton.waitFor({ state: 'visible' });
+                await saveButton.click();
+            } else {
+                console.log('No missing ASIN data link found, proceeding with cleanup...');
+            }
 
             // Start label generation and printing in the background
        /*    this.handleLabelPrinting(automation, fnskuValue, params).catch(error => {
