@@ -1,5 +1,6 @@
 {
     "appId": "com.specs.smrt-seller-app",
+    "productName": "SMRT Seller",
     "icon": "./smrt-seller-app-icon.png",
     "files": [
        "dist-electron",
@@ -15,7 +16,26 @@
        }
     ],
     "mac": {
-        "target": "dmg"
+        "target": {
+            "target": "default",
+            "arch": ["arm64"]
+        },
+        "category": "public.app-category.business",
+        "hardenedRuntime": true,
+        "entitlements": "build/entitlements.mac.plist",
+        "entitlementsInherit": "build/entitlements.mac.plist",
+        "gatekeeperAssess": false,
+        "identity": "Owen Dorsey (GQN9G64546)",
+        "signIgnore": [
+            "node_modules/playwright-core/.*/.*"
+        ],
+        "artifactName": "${productName}-${version}-${arch}.${ext}",
+        "extendInfo": {
+            "NSAppleEventsUsageDescription": "Application requires access to send Apple Events.",
+            "NSCameraUsageDescription": "Application requires access to the camera.",
+            "NSMicrophoneUsageDescription": "Application requires access to the microphone.",
+            "NSRequiresAquaSystemAppearance": false
+        }
     },
     "linux": {
         "target": "AppImage",
@@ -23,5 +43,20 @@
     },
     "win": {
         "target": ["portable", "msi"]
+    },
+    "dmg": {
+        "sign": false,
+        "contents": [
+            {
+                "x": 130,
+                "y": 220
+            },
+            {
+                "x": 410,
+                "y": 220,
+                "type": "link",
+                "path": "/Applications"
+            }
+        ]
     }
 }

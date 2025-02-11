@@ -1,5 +1,8 @@
 {
   "name": "smrt-seller-app",
+  "productName": "SMRT Seller",
+  "description": "Amazon Seller Central automation tool for efficient listing management",
+  "author": "Owen Dorsey",
   "main": "dist-electron/main.js",
   "private": true,
   "version": "0.0.0",
@@ -13,7 +16,11 @@
     "transpile:electron": "tsc --project src/electron/tsconfig.json",
     "install:browsers": "playwright install firefox",
     "copy:browsers": "mkdir -p playwright-browsers && cp -R ~/Library/Caches/ms-playwright/firefox-1471 playwright-browsers/",
-    "dist:mac": "npm run transpile:electron && npm run build && electron-builder --mac --arm64",
+    "sign:playwright": "codesign --force --options runtime --entitlements build/entitlements.mac.plist --deep --sign 'Developer ID Application: Owen Dorsey (GQN9G64546)' playwright-browsers/firefox-1471/firefox/Nightly.app",
+    "dist:mac": "npm run transpile:electron && npm run build && npm run sign:playwright && cross-env DEBUG=electron-builder,electron-builder:*,electron-osx-sign node -r dotenv/config ./node_modules/.bin/electron-builder --mac --arm64",
+    "notarize:mac": "node -r dotenv/config scripts/notarize.js",
+    "sign:mac": "codesign --force --deep --verbose --options=runtime --entitlements build/entitlements.mac.plist --sign 'Developer ID Application: Owen Dorsey (GQN9G64546)' 'dist/mac-arm64/SMRT Seller.app' && codesign --verify --verbose --deep 'dist/mac-arm64/SMRT Seller.app'",
+    "create:dmg": "electron-builder --mac dmg --arm64 -c.dmg.sign=false",
     "dist:win": "npm run transpile:electron && npm run build && electron-builder --win --x64",
     "dist:linux": "npm run transpile:electron && npm run build && electron-builder --linux --x64",
     "test:e2e": "playwright test",
@@ -33,10 +40,11 @@
     "react-dom": "^19.0.0",
     "recharts": "^2.15.1",
     "save-dev": "^0.0.1-security",
-    "uuid": "^9.0.1",
-    "unix-print": "^1.3.2"
+    "unix-print": "^1.3.2",
+    "uuid": "^9.0.1"
   },
   "devDependencies": {
+    "@electron/notarize": "^2.5.0",
     "@eslint/js": "^9.19.0",
     "@types/os-utils": "^0.0.4",
     "@types/react": "^19.0.8",
@@ -44,6 +52,7 @@
     "@types/uuid": "^10.0.0",
     "@vitejs/plugin-react": "^4.3.4",
     "cross-env": "^7.0.3",
+    "dotenv": "^16.4.5",
     "electron": "^34.1.0",
     "electron-builder": "^25.1.8",
     "eslint": "^9.19.0",

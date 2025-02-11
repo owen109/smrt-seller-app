@@ -1,3 +1,7 @@
+# Environment variables
+.env
+.env.*
+
 # Logs
 logs
 *.log
@@ -7,6 +11,7 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
+# Build output
 node_modules
 dist
 dist-ssr
@@ -15,6 +20,8 @@ release
 dist-electron
 *.local
 
+# Playwright browsers
+playwright-browsers/
 
 # Editor directories and files
 .vscode/*
@@ -26,4 +33,12 @@ dist-electron
 *.njsproj
 *.sln
 *.sw?
-playwright-browsers/
+
+# macOS certificates and signing
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.cer
+*.certSigningRequest
+*.provisionprofile
