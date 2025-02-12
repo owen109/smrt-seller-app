@@ -2,6 +2,11 @@ import { ipcMain, WebContents, IpcMainInvokeEvent } from 'electron';
 import { pathToFileURL } from 'url';
 import { getUIPath } from './pathResolver.js';
 import { WebFrameMain } from 'electron/main';
+import { exec } from 'child_process';
+import { promisify } from 'util';
+
+// Promisified exec function
+export const execPromise = promisify(exec);
 
 export function isDev(): boolean {
     return process.env.NODE_ENV === 'development';

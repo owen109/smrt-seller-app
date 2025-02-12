@@ -270,8 +270,16 @@ header button {
   gap: 0.25rem;
 }
 
+.print-button.alt {
+  color: #9147FF;  /* Different color to distinguish from regular print button */
+}
+
 .print-button:hover:not(:disabled) {
   background-color: rgba(4, 149, 246, 0.1);
+}
+
+.print-button.alt:hover:not(:disabled) {
+  background-color: rgba(145, 71, 255, 0.1);
 }
 
 .print-button:disabled {

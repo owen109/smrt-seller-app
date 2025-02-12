@@ -24,7 +24,7 @@ electron.contextBridge.exposeInMainWorld('electron', {
     completeSetup: () => ipcInvoke<'completeSetup'>('completeSetup'),
     getLogs: () => ipcInvoke<'getLogs'>('getLogs'),
     getPrinters: () => ipcInvoke<'getPrinters'>('getPrinters'),
-    testPrint: (settings: PrintSettings) => ipcInvoke<'testPrint'>('testPrint', settings)
+    testPrint: (settings: PrintSettings) => ipcInvoke<'testPrint'>('testPrint', settings),
 } satisfies Window['electron']); 
 
 

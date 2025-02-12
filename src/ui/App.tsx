@@ -113,6 +113,22 @@ function App() {
     }
   };
 
+  const handleLabelSizeChange = async (newSize: LabelSize) => {
+    console.log('Changing label size to:', newSize);
+    // Update local state
+    setPrintSettings(prev => {
+      const updated = { ...prev, labelSize: newSize };
+      console.log('Updated print settings:', updated);
+      return updated;
+    });
+    // Update server settings
+    try {
+      await window.electron.testPrint({ ...printSettings, labelSize: newSize });
+    } catch (error) {
+      console.error('Failed to update print settings:', error);
+    }
+  };
+
   if (!setupStatus) {
     return <div className="App">Loading...</div>;
   }
@@ -182,14 +198,11 @@ function App() {
             <span className="printer-label">Label Size:</span>
             <select
               value={printSettings.labelSize}
-              onChange={(e) => setPrintSettings(prev => ({ 
-                ...prev, 
-                labelSize: e.target.value as LabelSize 
-              }))}
+              onChange={(e) => handleLabelSizeChange(e.target.value as LabelSize)}
               className="size-select"
             >
               <option value="STANDARD">Standard (2.625" x 1")</option>
-              <option value="SMALL">Small (2" x 1")</option>
+              <option value="SMALL">Small (2.125" x 1")</option>
               <option value="LARGE">Large (3" x 2")</option>
             </select>
 

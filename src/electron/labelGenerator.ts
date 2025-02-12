@@ -8,7 +8,7 @@ import { promises as fs } from 'fs';
 // Standard label sizes in mm (based on Amazon's specifications)
 export const LABEL_SIZES = {
     STANDARD: { width: 66.7, height: 25.4 },    // 2.625" x 1" (Amazon standard)
-    SMALL: { width: 50.8, height: 25.4 },       // 2" x 1" (minimum)
+    SMALL: { width: 54.0, height: 25.4 },       // 2.125" x 1" (minimum)
     LARGE: { width: 76.2, height: 50.8 }        // 3" x 2" (maximum)
 } as const;
 
@@ -44,12 +44,19 @@ export async function generateLabel({
             bwipjs.toBuffer({
                 bcid: 'code128',
                 text: fnsku,
-                scale: 4,                     // Increased scale for better clarity
-                height: 10,                   // Standard height
+                scale: 5,                    // Increased scale further for even higher resolution
+                height: 10,                  // Increased height for better scanning
                 includetext: true,
                 textxalign: 'center',
-                textsize: 7,                  // Increased text size
-                width: dimensions.width * 0.8  // Adjusted width
+                textsize: 7,                 // Slightly larger text for better readability
+                width: dimensions.width * 0.85,  // Increased width to use more space
+                backgroundcolor: 'ffffff',    // White background
+                padding: 0,                   // No padding
+                resolution: 600,              // Doubled DPI for much higher quality
+                sizelimit: 0,                // Remove size limit
+                guardwhitespace: true,       // Add white space guards
+                inkspread: 0,                // Compensate for ink spread
+                textyoffset: 2               // Adjust text position
             }, function (err, png) {
                 if (err) reject(err);
                 else resolve(png);
@@ -63,12 +70,13 @@ export async function generateLabel({
             format: [dimensions.height, dimensions.width]  // Swapped for landscape
         });
 
-        // Calculate positions for centered elements
-        const barcodeWidth = dimensions.width * 0.8;
-        const barcodeHeight = dimensions.height * 0.5;
+        // Calculate positions for centered elements with reduced margins
+        const margin = dimensions.width * 0.08;  // Reduced margin to 8% on sides
+        const barcodeWidth = dimensions.width * 0.85;  // Increased to 85% of width
+        const barcodeHeight = dimensions.height * 0.45;  // Kept same height
         const barcodeX = (dimensions.width - barcodeWidth) / 2;  // Center horizontally
-        const barcodeY = dimensions.height * 0.1;
-        const textMargin = barcodeX;  // Use same margin as barcode
+        const barcodeY = dimensions.height * 0.15;  // Moved down slightly
+        const textMargin = margin + 2;  // Add 2mm to text margin for better spacing
 
         // Add barcode centered
         doc.addImage(
@@ -81,17 +89,17 @@ export async function generateLabel({
         );
 
         // Set up text properties
-        doc.setFontSize(5.5);  // Reduced from 7 to 5.5
-        doc.setFont('Helvetica', 'normal');  // Changed to Helvetica for better clarity
+        doc.setFontSize(5);  // Reduced font size for better fit
+        doc.setFont('Helvetica', 'normal');
         
         // Calculate text positions with proper spacing
-        const textStartY = dimensions.height * 0.70;  // Increased from 0.65 to 0.70 to move text down
-        const lineHeight = 2.2; // Reduced line height for less vertical spacing
+        const textStartY = dimensions.height * 0.75;  // Moved up slightly
+        const lineHeight = 2;  // Reduced line height
 
         // Function to add text with proper spacing
         function addSpacedText(text: string, y: number) {
             const chars = text.split('');
-            const charSpacing = 0.35; // Adjusted character spacing
+            const charSpacing = 0.3;  // Reduced character spacing
             let currentX = textMargin;
             
             chars.forEach((char) => {
@@ -100,21 +108,19 @@ export async function generateLabel({
             });
         }
 
-        // Add text lines with proper spacing
+        // Add text lines with proper spacing (removed redundant FNSKU line)
         if (title) {
-            addSpacedText(`Title: ${title.substring(0, 50)}${title.length > 50 ? '...' : ''}`, textStartY);
+            addSpacedText(`Title: ${title.substring(0, 45)}${title.length > 45 ? '...' : ''}`, textStartY);
             addSpacedText(`ASIN: ${asin}`, textStartY + lineHeight);
             addSpacedText(`SKU: ${sku}`, textStartY + (lineHeight * 2));
-            addSpacedText(`FNSKU: ${fnsku}`, textStartY + (lineHeight * 3));
             if (condition) {
-                addSpacedText(`Condition: ${condition}`, textStartY + (lineHeight * 4));
+                addSpacedText(`Condition: ${condition}`, textStartY + (lineHeight * 3));
             }
         } else {
             addSpacedText(`ASIN: ${asin}`, textStartY);
             addSpacedText(`SKU: ${sku}`, textStartY + lineHeight);
-            addSpacedText(`FNSKU: ${fnsku}`, textStartY + (lineHeight * 2));
             if (condition) {
-                addSpacedText(`Condition: ${condition}`, textStartY + (lineHeight * 3));
+                addSpacedText(`Condition: ${condition}`, textStartY + (lineHeight * 2));
             }
         }
 

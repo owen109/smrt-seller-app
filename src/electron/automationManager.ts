@@ -2,7 +2,7 @@ import { firefox, Browser, Page } from 'playwright';
 import path from 'path';
 import { app } from 'electron';
 import { v4 as uuidv4 } from 'uuid';
-import { ipcWebContentsSend } from './util.js';
+import { ipcWebContentsSend, execPromise } from './util.js';
 import { BrowserWindow } from 'electron';
 import fs from 'fs/promises';
 import { existsSync } from 'fs';
@@ -1027,7 +1027,7 @@ class AutomationManager {
     // Helper method to create a promise with external resolve/reject
     private createResolvablePromise<T>(): { 
         promise: Promise<T>, 
-        resolve: (value: T) => void, 
+        resolve: (value: T) => void,
         reject: (error: Error) => void 
     } {
         let resolve!: (value: T) => void;
@@ -1150,7 +1150,7 @@ class AutomationManager {
         }
 
         const browser = await firefox.launch({
-            headless: true,
+            headless: false,
             executablePath: firefoxPath,
             firefoxUserPrefs: {
                 'browser.sessionstore.resume_from_crash': false,
@@ -1293,18 +1293,21 @@ class AutomationManager {
     // Utility function for printing with unix-print
     private async printPDFUnix(pdfPath: string, printerName?: string, options: string[] = []): Promise<boolean> {
         try {
-            log.info('Printing PDF:', pdfPath);
-            log.info('Printer:', printerName || 'default');
-            log.info('Options:', options);
+            log.info('Using PDF path:', pdfPath);
 
-            const printJob = await print(pdfPath, printerName, options);
+            // Using lp with specific options for rotation and sizing
+            const command = `lp -d "${printerName}" -o landscape -o orientation-requested=6 -o scaling=100 -o media=Custom.1x2.125in "${pdfPath}"`;
             
-            // Wait for print completion
-            while (!await isPrintComplete(printJob)) {
-                await new Promise(resolve => setTimeout(resolve, 500)); // Check every 500ms
+            log.info('Sending print job with command:', command);
+            
+            const { stdout, stderr } = await execPromise(command);
+            
+            if (stderr) {
+                log.error('Print error:', stderr);
+                return false;
             }
-
-            log.info('Print completed successfully');
+            
+            log.info('Print job sent successfully!', stdout);
             return true;
         } catch (error) {
             log.error('Print failed:', error);
@@ -1844,10 +1847,6 @@ class AutomationManager {
                 progress: 90
             });
 
-            // Get current print settings for label size
-            const printers = await this.mainWindow.webContents.getPrintersAsync();
-            const defaultPrinter = printers.find(p => p.isDefault);
-
             // Now we know params exists and has the required properties
             const labelPath = await generateLabel({
                 fnsku,
@@ -1857,20 +1856,25 @@ class AutomationManager {
                 labelSize: this.printSettings?.labelSize || 'STANDARD' // Use configured size or default to STANDARD
             });
 
-            // Print using unix-print
-            const success = await this.printPDFUnix(labelPath, this.printerName, [
-                '-o fit-to-page',
-                '-o nocolor',
-                '-n 1'
-            ]);
+            log.info('Using PDF path:', labelPath);
 
-            if (!success) {
+            // Using lp with specific options for rotation and sizing
+            const command = `lp -d "${this.printerName}" -o landscape -o orientation-requested=6 -o scaling=100 -o media=Custom.1x2.125in "${labelPath}"`;
+            
+            log.info('Sending print job with command:', command);
+            
+            const { stdout, stderr } = await execPromise(command);
+            
+            if (stderr) {
+                log.error('Print error:', stderr);
                 this.updateAutomationStatus(automation, {
                     message: 'Warning: Label printing failed, but listing was created successfully.',
                     progress: 100
                 });
                 return;
             }
+            
+            log.info('Print job sent successfully!', stdout);
 
             this.updateAutomationStatus(automation, {
                 message: `Successfully created listing with FNSKU: ${fnsku}`,
