@@ -150,6 +150,10 @@ function setupIpcHandlers(automationManager: ReturnType<typeof createAutomationM
     }));
   });
 
+  ipcMainHandle<'getPrintSettings'>("getPrintSettings", async () => {
+    return automationManager.getPrintSettings();
+  });
+
   ipcMainHandle<'testPrint'>("testPrint", async (_event, settings: PrintSettings) => {
     try {
       console.log('\n=== Test Print Request ===');

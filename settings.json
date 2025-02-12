@@ -1,0 +1,9 @@
+{
+  "printSettings": {
+    "printer": "DYMO_LabelWriter_450",
+    "labelSize": "STANDARD",
+    "copies": 0,
+    "color": false,
+    "duplex": false
+  }
+}

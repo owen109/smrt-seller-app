@@ -53,12 +53,11 @@ function App() {
       const defaultPrinter = printers.find(p => p.isDefault);
       if (defaultPrinter) {
         setSelectedPrinter(defaultPrinter.name);
-        setPrintSettings(prev => ({ 
-          ...prev, 
-          printer: defaultPrinter.name,
-          color: false,
-          copies: 1
-        }));
+        // Load the current print settings
+        window.electron.getPrintSettings().then(savedSettings => {
+          setPrintSettings(savedSettings);
+          console.log('Loaded saved print settings:', savedSettings);
+        });
       }
     });
 
@@ -115,15 +114,21 @@ function App() {
 
   const handleLabelSizeChange = async (newSize: LabelSize) => {
     console.log('Changing label size to:', newSize);
-    // Update local state
+    // First update local state
     setPrintSettings(prev => {
       const updated = { ...prev, labelSize: newSize };
       console.log('Updated print settings:', updated);
       return updated;
     });
-    // Update server settings
+
+    // Then update server settings with a single call (copies=0 to prevent actual printing)
     try {
-      await window.electron.testPrint({ ...printSettings, labelSize: newSize });
+      await window.electron.testPrint({ 
+        ...printSettings, 
+        labelSize: newSize,
+        copies: 0 
+      });
+      console.log('Saved label size:', newSize);
     } catch (error) {
       console.error('Failed to update print settings:', error);
     }

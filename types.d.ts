@@ -109,6 +109,7 @@ type EventPayloadMapping = {
     completeSetup: void;
     getLogs: string;
     getPrinters: PrinterInfo[];
+    getPrintSettings: PrintSettings;
     testPrint: boolean;
 }
 
@@ -128,6 +129,7 @@ interface Window {
         completeSetup: () => Promise<void>;
         getLogs: () => Promise<string>;
         getPrinters: () => Promise<PrinterInfo[]>;
+        getPrintSettings: () => Promise<PrintSettings>;
         testPrint: (settings: PrintSettings) => Promise<boolean>;
     };
 }

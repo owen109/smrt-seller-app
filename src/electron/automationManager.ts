@@ -67,6 +67,7 @@ class AutomationManager {
     private mainWindow: BrowserWindow;
     private profilesPath: string;
     private configPath: string;
+    private settingsPath: string;
     private printerName: string = '';
     private isReauthenticating: boolean = false;
     private authBrowser: Browser | null = null;
@@ -86,11 +87,13 @@ class AutomationManager {
         
         this.profilesPath = path.join(baseDir, 'profiles');
         this.configPath = path.join(this.profilesPath, 'config.json');
+        this.settingsPath = path.join(baseDir, 'settings.json');
         
         log.info('Initializing AutomationManager', {
             baseDir,
             profilesPath: this.profilesPath,
             configPath: this.configPath,
+            settingsPath: this.settingsPath,
             isPackaged: app.isPackaged,
             platform: process.platform,
             arch: process.arch,
@@ -100,6 +103,7 @@ class AutomationManager {
         });
         
         this.initializeDirectories();
+        this.loadSettings();
         this.initializePrinter();
     }
 
@@ -1956,8 +1960,55 @@ class AutomationManager {
 
     // Add a method to update print settings
     setPrintSettings(settings: PrintSettings) {
-        this.printSettings = settings;
-        this.printerName = settings.printer;
+        log.info('Updating print settings:', settings);
+        // Only update provided settings, preserve others
+        this.printSettings = {
+            ...this.printSettings,  // Keep existing settings
+            ...settings,            // Override with new settings
+            copies: settings.copies || this.printSettings.copies || 0  // Preserve copies if not explicitly set
+        };
+        
+        if (settings.printer) {
+            this.printerName = settings.printer;
+        }
+        
+        log.info('Final print settings:', this.printSettings);
+        
+        this.saveSettings().catch(error => {
+            log.error('Failed to save print settings:', error);
+        });
+    }
+
+    // Add new methods for settings persistence
+    private async saveSettings() {
+        try {
+            const settingsToSave = {
+                printSettings: this.printSettings
+            };
+            await fs.writeFile(this.settingsPath, JSON.stringify(settingsToSave, null, 2));
+            log.info('Settings saved successfully:', settingsToSave);
+        } catch (error) {
+            log.error('Failed to save settings:', error);
+        }
+    }
+
+    private async loadSettings() {
+        try {
+            if (await fs.access(this.settingsPath).then(() => true).catch(() => false)) {
+                const data = await fs.readFile(this.settingsPath, 'utf-8');
+                const settings = JSON.parse(data);
+                if (settings.printSettings) {
+                    // Preserve existing settings, only override with saved ones
+                    this.printSettings = {
+                        ...this.printSettings,
+                        ...settings.printSettings
+                    };
+                    log.info('Settings loaded successfully:', this.printSettings);
+                }
+            }
+        } catch (error) {
+            log.error('Failed to load settings:', error);
+        }
     }
 }
 
