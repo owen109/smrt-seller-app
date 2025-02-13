@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import './App.css'
+import logo from './assets/SMRT_Seller_Text.png'
 
 type AutomationDisplay = {
   [id: string]: AutomationStatus;
@@ -135,13 +136,20 @@ function App() {
   };
 
   if (!setupStatus) {
-    return <div className="App">Loading...</div>;
+    return <div className="App">
+      <div className="app-header">
+        <img src={logo} alt="SMRT Seller Logo" className="app-logo" />
+      </div>
+      Loading...
+    </div>;
   }
 
   if (!setupStatus.isConfigured) {
     return (
       <div className="App">
-        <Header />
+        <div className="app-header">
+          <img src={logo} alt="SMRT Seller Logo" className="app-logo" />
+        </div>
         <div className="setup-container">
           <h2>Welcome to SMRT Seller</h2>
           <p>Before you can use the app, you need to set up your Amazon Seller Central account.</p>
@@ -165,7 +173,9 @@ function App() {
 
   return (
     <div className="App">
-      <Header />
+      <div className="app-header">
+        <img src={logo} alt="SMRT Seller Logo" className="app-logo" />
+      </div>
       <div className="main">
         <h2>Ready to automate!</h2>
         <p>Your Seller Central account is connected.</p>
@@ -256,16 +266,6 @@ function App() {
         </div>
       </div>
     </div>
-  )
-}
-
-function Header() {
-  return (
-    <header>
-      <button id="close" onClick={() => window.electron.sendFrameAction("CLOSE")} />
-      <button id="minimize" onClick={() => window.electron.sendFrameAction("MINIMIZE")} />
-      <button id="maximize" onClick={() => window.electron.sendFrameAction("MAXIMIZE")} />
-    </header>
   )
 }
 

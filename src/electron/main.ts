@@ -61,11 +61,20 @@ app.on('ready', () => {
     title: 'SMRT Seller',
     width: 800,
     height: 600,
+    resizable: false,
     webPreferences: {
       preload: getPreloadPath(),
-    },
-    frame: false,
+    }
   });
+
+  // Set the title again after creation to ensure it sticks
+  mainWindow.setTitle('SMRT Seller');
+  
+  // Prevent title changes from the webpage
+  mainWindow.on('page-title-updated', (e) => {
+    e.preventDefault();
+  });
+
   if (isDev()) {
     mainWindow.loadURL(`http://localhost:5123`);
   } else {
@@ -104,6 +113,23 @@ app.on('ready', () => {
   createTray(mainWindow);
   handleClose(mainWindow);
   createMenu(mainWindow);
+
+  // Update popup window configuration
+  const popup = new BrowserWindow({
+    width: 400,
+    height: 200,
+    resizable: false,
+    frame: false,
+    alwaysOnTop: true,
+    skipTaskbar: false,
+    webPreferences: {
+      nodeIntegration: true,
+      contextIsolation: false,
+      webSecurity: false
+    },
+    backgroundColor: '#ffffff',
+    show: false
+  });
 });
 
 function setupIpcHandlers(automationManager: ReturnType<typeof createAutomationManager>, mainWindow: BrowserWindow) {

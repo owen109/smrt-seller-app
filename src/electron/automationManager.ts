@@ -617,56 +617,13 @@ class AutomationManager {
                     <style>
                         body {
                             margin: 0;
-                            padding: 0;
+                            padding: 2rem;
                             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
                             background-color: white;
                             overflow: hidden;
-                            user-select: none;
-                            -webkit-app-region: drag;
-                        }
-
-                        header {
-                            width: 100%;
-                            text-align: left;
-                            padding: 0.5rem;
-                            box-sizing: border-box;
-                            background-color: #0495F6;
-                            display: flex;
-                            justify-content: space-between;
-                            align-items: center;
-                        }
-
-                        .title {
-                            color: white;
-                            font-size: 14px;
-                            margin-left: 3rem;
-                            font-weight: 500;
-                        }
-
-                        .window-controls {
-                            display: flex;
-                            gap: 0.25rem;
-                            -webkit-app-region: no-drag;
-                        }
-
-                        .window-controls button {
-                            all: unset;
-                            border-radius: 50%;
-                            width: 1rem;
-                            height: 1rem;
-                            cursor: pointer;
-                        }
-
-                        #close {
-                            background-color: red;
-                        }
-
-                        #minimize {
-                            background-color: yellow;
                         }
 
                         .content {
-                            padding: 1.5rem;
                             text-align: center;
                         }
 
@@ -681,7 +638,6 @@ class AutomationManager {
                             display: flex;
                             gap: 1rem;
                             justify-content: center;
-                            -webkit-app-region: no-drag;
                         }
 
                         .button {
@@ -724,15 +680,6 @@ class AutomationManager {
                     </style>
                 </head>
                 <body>
-                    <header>
-                        <div class="window-controls">
-                            <button id="close"></button>
-                            <button id="minimize"></button>
-                        </div>
-                        <span class="title">Amazon Seller Central Login</span>
-                        <div style="width: 3rem"></div>
-                    </header>
-                    
                     <!-- Initial Login State -->
                     <div id="login-state" class="state content active">
                         <p class="message">
@@ -757,57 +704,44 @@ class AutomationManager {
                     </div>
 
                     <script>
-                        try {
-                            const electron = require('electron');
-                            const { ipcRenderer } = electron;
+                        const electron = require('electron');
+                        const { ipcRenderer } = electron;
 
-                            // Add error logging
-                            window.onerror = function(message, source, lineno, colno, error) {
-                                console.error('Error:', message, 'at', source, ':', lineno);
-                                if (error) console.error(error);
-                            };
+                        // Add error logging
+                        window.onerror = function(message, source, lineno, colno, error) {
+                            console.error('Error:', message, 'at', source, ':', lineno);
+                            if (error) console.error(error);
+                        };
 
-                            // State management
-                            let currentState = 'login';
-                            
-                            function showState(state) {
-                                document.getElementById('login-state').classList.remove('active');
-                                document.getElementById('loading-state').classList.remove('active');
-                                document.getElementById(\`\${state}-state\`).classList.add('active');
-                                currentState = state;
-                            }
-
-                            // Listen for state change from main process
-                            ipcRenderer.on('change-state', (_, state) => {
-                                showState(state);
-                            });
-
-                            // Window controls
-                            document.getElementById('close').addEventListener('click', () => {
-                                ipcRenderer.send('reauth-response', 'cancel');
-                            });
-
-                            document.getElementById('minimize').addEventListener('click', () => {
-                                ipcRenderer.send('minimize-reauth');
-                            });
-
-                            // Login state buttons
-                            document.getElementById('login').addEventListener('click', () => {
-                                ipcRenderer.send('reauth-response', 'login');
-                                showState('loading');
-                            });
-
-                            document.getElementById('cancel').addEventListener('click', () => {
-                                ipcRenderer.send('reauth-response', 'cancel');
-                            });
-
-                            // Loading state buttons
-                            document.getElementById('cancel-login').addEventListener('click', () => {
-                                ipcRenderer.send('reauth-response', 'cancel');
-                            });
-                        } catch (error) {
-                            console.error('Script initialization error:', error);
+                        // State management
+                        let currentState = 'login';
+                        
+                        function showState(state) {
+                            document.getElementById('login-state').classList.remove('active');
+                            document.getElementById('loading-state').classList.remove('active');
+                            document.getElementById(\`\${state}-state\`).classList.add('active');
+                            currentState = state;
                         }
+
+                        // Listen for state change from main process
+                        ipcRenderer.on('change-state', (_, state) => {
+                            showState(state);
+                        });
+
+                        // Login state buttons
+                        document.getElementById('login').addEventListener('click', () => {
+                            ipcRenderer.send('reauth-response', 'login');
+                            showState('loading');
+                        });
+
+                        document.getElementById('cancel').addEventListener('click', () => {
+                            ipcRenderer.send('reauth-response', 'cancel');
+                        });
+
+                        // Loading state buttons
+                        document.getElementById('cancel-login').addEventListener('click', () => {
+                            ipcRenderer.send('reauth-response', 'cancel');
+                        });
                     </script>
                 </body>
                 </html>
@@ -1450,6 +1384,9 @@ class AutomationManager {
                 await page.getByRole('textbox', { name: 'Condition Note' }).fill(params.conditionNotes);
             }
 
+            // Select FBA fulfillment
+            await page.locator('#offerFulfillment-AFN > .kat-radiobutton-icon').click();
+
             this.updateAutomationStatus(automation, {
                 message: 'Submitting listing...',
                 progress: 75
@@ -1528,63 +1465,20 @@ class AutomationManager {
                 popup.center();
 
                 // Create the HTML content for dimensions input
-                const htmlContent = `
+                const dimensionsHtmlContent = `
                     <!DOCTYPE html>
                     <html>
                     <head>
                         <style>
                             body {
                                 margin: 0;
-                                padding: 0;
+                                padding: 2rem;
                                 font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
                                 background-color: white;
                                 overflow: hidden;
-                                user-select: none;
-                                -webkit-app-region: drag;
-                            }
-
-                            header {
-                                width: 100%;
-                                text-align: left;
-                                padding: 0.75rem;
-                                box-sizing: border-box;
-                                background-color: #0495F6;
-                                display: flex;
-                                justify-content: space-between;
-                                align-items: center;
-                            }
-
-                            .title {
-                                color: white;
-                                font-size: 16px;
-                                margin-left: 3rem;
-                                font-weight: 500;
-                            }
-
-                            .window-controls {
-                                display: flex;
-                                gap: 0.5rem;
-                                -webkit-app-region: no-drag;
-                            }
-
-                            .window-controls button {
-                                all: unset;
-                                border-radius: 50%;
-                                width: 12px;
-                                height: 12px;
-                                cursor: pointer;
-                            }
-
-                            #close {
-                                background-color: #FF5F57;
-                            }
-
-                            #minimize {
-                                background-color: #FEBC2E;
                             }
 
                             .content {
-                                padding: 2rem;
                                 text-align: center;
                             }
 
@@ -1634,7 +1528,6 @@ class AutomationManager {
                                 border: 1px solid #ddd;
                                 border-radius: 6px;
                                 font-size: 14px;
-                                -webkit-app-region: no-drag;
                                 box-sizing: border-box;
                             }
 
@@ -1649,7 +1542,6 @@ class AutomationManager {
                                 gap: 1rem;
                                 justify-content: flex-end;
                                 margin-top: 2rem;
-                                -webkit-app-region: no-drag;
                             }
 
                             .button {
@@ -1680,15 +1572,6 @@ class AutomationManager {
                         </style>
                     </head>
                     <body>
-                        <header>
-                            <div class="window-controls">
-                                <button id="close"></button>
-                                <button id="minimize"></button>
-                            </div>
-                            <span class="title">Enter Product Dimensions</span>
-                            <div style="width: 3rem"></div>
-                        </header>
-                        
                         <div class="content">
                             <div class="sku-info">
                                 <h2>Product Information</h2>
@@ -1724,14 +1607,6 @@ class AutomationManager {
                             const electron = require('electron');
                             const { ipcRenderer } = electron;
 
-                            document.getElementById('close').addEventListener('click', () => {
-                                ipcRenderer.send('dimensions-response', 'cancel');
-                            });
-
-                            document.getElementById('minimize').addEventListener('click', () => {
-                                ipcRenderer.send('minimize-dimensions');
-                            });
-
                             document.getElementById('submit').addEventListener('click', () => {
                                 const dimensions = {
                                     length: document.getElementById('length').value,
@@ -1759,7 +1634,7 @@ class AutomationManager {
                 `;
 
                 // Load the HTML content
-                popup.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(htmlContent)}`);
+                popup.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(dimensionsHtmlContent)}`);
 
                 // Show window once it's ready
                 popup.once('ready-to-show', () => {
