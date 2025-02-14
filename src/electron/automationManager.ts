@@ -588,7 +588,7 @@ class AutomationManager {
             const popup = new BrowserWindow({
                 width: 400,
                 height: 200,
-                frame: false,
+                frame: true,  // Enable window frame
                 resizable: false,
                 alwaysOnTop: true,
                 skipTaskbar: false,
@@ -598,7 +598,8 @@ class AutomationManager {
                     webSecurity: false
                 },
                 backgroundColor: '#ffffff',
-                show: false
+                show: false,
+                title: 'Re-authentication Required'  // Add window title
             });
 
             // Position window in center of screen
@@ -1152,11 +1153,28 @@ class AutomationManager {
         // Set up context event handlers
         context.on('page', async page => {
             page.on('console', msg => {
-                log.info('Browser console:', msg.text());
+                const text = msg.text();
+                // Filter out noisy messages
+                if (!text.includes('Cookie') && 
+                    !text.includes('SameSite') && 
+                    !text.includes('Quirks Mode') && 
+                    !text.includes('InstallTrigger') && 
+                    !text.includes('onmozfullscreen') && 
+                    !text.includes('downloadable font') && 
+                    !text.includes('Unsatisfied version') && 
+                    !text.includes('Emitting metrics') && 
+                    !text.includes('lit-element') && 
+                    !text.includes('Ignoring unsupported entryTypes') &&
+                    !text.includes('re-reselect')) {
+                    log.info('Browser console:', text);
+                }
             });
             
             page.on('pageerror', error => {
-                log.error('Browser page error:', error);
+                // Only log actual errors, not warnings
+                if (!error.toString().toLowerCase().includes('warning')) {
+                    log.error('Browser page error:', error);
+                }
             });
         });
 
@@ -1415,24 +1433,24 @@ class AutomationManager {
 
             // Handle prep steps
             console.log('Handling prep steps...');
-            await page.getByTestId('sku-action-info-prep-missing-link').locator('a').click();
-            
+            await page.getByTestId('sku-action-info-prep-missing-link').locator('a').click();    
             // Wait for first Save button to be visible and clickable
             await page.getByRole('button', { name: 'Save' }).waitFor({ state: 'visible' });
             await page.getByRole('button', { name: 'Save' }).click();
+            console.log('First Save button clicked');
             
             // Wait a moment for UI to update after first save
-            await page.waitForTimeout(200);
+            await page.waitForTimeout(500);
             
             // Check if second Save button exists and is visible before clicking
-            const secondSaveButton = page.getByRole('button', { name: 'Save' });
+            const secondSaveButton = await page.getByRole('button', { name: 'Save' });
             const hasSecondSave = await secondSaveButton.count() > 0;
+            console.log('Second Save button: ', hasSecondSave);
             if (hasSecondSave) {
                 await secondSaveButton.waitFor({ state: 'visible' });
                 await secondSaveButton.click();
+                console.log('Second Save button clicked');
             }
-
-            // Wait for any animations or transitions to complete
             await page.waitForTimeout(1200);
 
             // Check for missing ASIN data link
@@ -1448,7 +1466,7 @@ class AutomationManager {
                 const popup = new BrowserWindow({
                     width: 500,
                     height: 480,
-                    frame: false,
+                    frame: true,  // Enable window frame
                     resizable: false,
                     alwaysOnTop: true,
                     skipTaskbar: false,
@@ -1458,7 +1476,8 @@ class AutomationManager {
                         webSecurity: false
                     },
                     backgroundColor: '#ffffff',
-                    show: false
+                    show: false,
+                    title: 'Enter Product Dimensions'  // Add window title
                 });
 
                 // Position window in center of screen
