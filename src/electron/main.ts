@@ -254,6 +254,14 @@ function setupHttpServer(automationManager: ReturnType<typeof createAutomationMa
     next();
   });
 
+  // Add ping endpoint for health checks
+  server.get('/ping', (_req, res) => {
+    res.status(200).json({ 
+      status: 'OK',
+      timestamp: new Date().toISOString()
+    });
+  });
+
   // New endpoint for printing labels
   server.post('/print-label', async (req, res) => {
     try {
