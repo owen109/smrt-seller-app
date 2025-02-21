@@ -204,17 +204,42 @@ class AutomationManager {
             const getFirefoxPath = () => {
                 if (app.isPackaged) {
                     // In production, use the bundled Firefox from resources
+                    if (process.platform === 'win32') {
+                        // Windows: Use the correct path structure for Windows
+                        return path.join(
+                            process.resourcesPath,
+                            'ms-playwright',
+                            'firefox-1471',
+                            'firefox',
+                            'firefox.exe'
+                        );
+                    } else {
+                        // Mac/Linux: Keep existing path structure
+                        return path.join(
+                            app.getAppPath(),
+                            '..',
+                            'ms-playwright',
+                            'firefox-1471',
+                            'firefox',
+                            process.platform === 'darwin' ? 'Nightly.app/Contents/MacOS/firefox' : 'firefox'
+                        );
+                    }
+                }
+
+                // In development
+                if (process.platform === 'win32') {
+                    // Windows development
                     return path.join(
-                        app.getAppPath(),
+                        process.env.APPDATA || '',
                         '..',
+                        'Local',
                         'ms-playwright',
                         'firefox-1471',
                         'firefox',
-                        process.platform === 'darwin' ? 'Nightly.app/Contents/MacOS/firefox' : 
-                        process.platform === 'win32' ? 'firefox.exe' : 'firefox'
+                        'firefox.exe'
                     );
                 }
-                // In development, use the cache path
+                // Mac/Linux development: Keep existing path
                 return path.join(
                     app.getPath('home'),
                     'Library',
@@ -222,13 +247,12 @@ class AutomationManager {
                     'ms-playwright',
                     'firefox-1471',
                     'firefox',
-                    process.platform === 'darwin' ? 'Nightly.app/Contents/MacOS/firefox' :
-                    process.platform === 'win32' ? 'firefox.exe' : 'firefox'
+                    process.platform === 'darwin' ? 'Nightly.app/Contents/MacOS/firefox' : 'firefox'
                 );
             };
 
             const firefoxPath = getFirefoxPath();
-            log.info('Using Firefox path:', firefoxPath);
+            log.info('Using Firefox path:', [firefoxPath]);
 
             // Check if Firefox exists
             try {
@@ -1113,18 +1137,50 @@ class AutomationManager {
         const getPlaywrightPath = () => {
             if (app.isPackaged) {
                 // In production, use the bundled Firefox from resources
+                if (process.platform === 'win32') {
+                    // Windows: Use the correct path structure for Windows
+                    return path.join(
+                        process.resourcesPath,
+                        'ms-playwright',
+                        'firefox-1471',
+                        'firefox',
+                        'firefox.exe'
+                    );
+                } else {
+                    // Mac/Linux: Keep existing path structure
+                    return path.join(
+                        app.getAppPath(),
+                        '..',
+                        'ms-playwright',
+                        'firefox-1471',
+                        'firefox',
+                        process.platform === 'darwin' ? 'Nightly.app/Contents/MacOS/firefox' : 'firefox'
+                    );
+                }
+            }
+
+            // In development
+            if (process.platform === 'win32') {
+                // Windows development
                 return path.join(
-                    app.getAppPath(),
+                    process.env.APPDATA || '',
                     '..',
-                    'ms-playwright'
+                    'Local',
+                    'ms-playwright',
+                    'firefox-1471',
+                    'firefox',
+                    'firefox.exe'
                 );
             }
-            // In development, use the cache path
+            // Mac/Linux development: Keep existing path
             return path.join(
                 app.getPath('home'),
                 'Library',
                 'Caches',
-                'ms-playwright'
+                'ms-playwright',
+                'firefox-1471',
+                'firefox',
+                process.platform === 'darwin' ? 'Nightly.app/Contents/MacOS/firefox' : 'firefox'
             );
         };
 
