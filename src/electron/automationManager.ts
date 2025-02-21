@@ -1134,35 +1134,36 @@ class AutomationManager {
     }
 
     private getFirefoxPath(): string {
-        const getPlaywrightPath = () => {
-            if (app.isPackaged) {
-                // In production, use the bundled Firefox from resources
-                if (process.platform === 'win32') {
-                    // Windows: Use the correct path structure for Windows
-                    return path.join(
-                        process.resourcesPath,
-                        'ms-playwright',
-                        'firefox-1471',
-                        'firefox',
-                        'firefox.exe'
-                    );
-                } else {
-                    // Mac/Linux: Keep existing path structure
-                    return path.join(
-                        app.getAppPath(),
-                        '..',
-                        'ms-playwright',
-                        'firefox-1471',
-                        'firefox',
-                        process.platform === 'darwin' ? 'Nightly.app/Contents/MacOS/firefox' : 'firefox'
-                    );
-                }
+        let firefoxPath: string;
+        const caller = new Error().stack?.split('\n')[2]?.trim() || 'unknown';
+        
+        if (app.isPackaged) {
+            // In production, use the bundled Firefox from resources
+            if (process.platform === 'win32') {
+                // Windows: Use the correct path structure for Windows
+                firefoxPath = path.join(
+                    process.resourcesPath,
+                    'ms-playwright',
+                    'firefox-1471',
+                    'firefox',
+                    'firefox.exe'
+                );
+            } else {
+                // Mac/Linux: Keep existing path structure
+                firefoxPath = path.join(
+                    app.getAppPath(),
+                    '..',
+                    'ms-playwright',
+                    'firefox-1471',
+                    'firefox',
+                    process.platform === 'darwin' ? 'Nightly.app/Contents/MacOS/firefox' : 'firefox'
+                );
             }
-
+        } else {
             // In development
             if (process.platform === 'win32') {
                 // Windows development
-                return path.join(
+                firefoxPath = path.join(
                     process.env.APPDATA || '',
                     '..',
                     'Local',
@@ -1171,30 +1172,26 @@ class AutomationManager {
                     'firefox',
                     'firefox.exe'
                 );
+            } else {
+                // Mac/Linux development: Keep existing path
+                firefoxPath = path.join(
+                    app.getPath('home'),
+                    'Library',
+                    'Caches',
+                    'ms-playwright',
+                    'firefox-1471',
+                    'firefox',
+                    process.platform === 'darwin' ? 'Nightly.app/Contents/MacOS/firefox' : 'firefox'
+                );
             }
-            // Mac/Linux development: Keep existing path
-            return path.join(
-                app.getPath('home'),
-                'Library',
-                'Caches',
-                'ms-playwright',
-                'firefox-1471',
-                'firefox',
-                process.platform === 'darwin' ? 'Nightly.app/Contents/MacOS/firefox' : 'firefox'
-            );
-        };
+        }
 
-        const playwrightPath = getPlaywrightPath();
-        const firefoxPath = path.join(
-            playwrightPath,
-            'firefox-1471',
-            'firefox',
-            process.platform === 'darwin' ? 'Nightly.app/Contents/MacOS/firefox' :
-            process.platform === 'win32' ? 'firefox.exe' : 'firefox'
-        );
-
-        log.info('Resolved Firefox path:', {
-            playwrightPath,
+        log.info('Getting Firefox path:', {
+            caller,
+            isPackaged: app.isPackaged,
+            platform: process.platform,
+            resourcesPath: app.isPackaged ? process.resourcesPath : 'n/a',
+            appPath: app.getAppPath(),
             firefoxPath,
             exists: existsSync(firefoxPath)
         });
