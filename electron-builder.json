@@ -42,7 +42,10 @@
         "category": "Utility"
     },
     "win": {
-        "target": ["portable", "msi"]
+        "target": ["portable", "msi"],
+        "icon": "./smrt-seller-app-icon.png",
+        "artifactName": "${productName}-${version}-win-${arch}.${ext}",
+        "publisherName": "SMRT Seller"
     },
     "dmg": {
         "sign": false,
