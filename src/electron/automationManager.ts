@@ -1118,7 +1118,7 @@ class AutomationManager {
         }
 
         const browser = await firefox.launch({
-            headless: false,
+            headless: true,
             executablePath: firefoxPath,
             firefoxUserPrefs: {
                 'browser.sessionstore.resume_from_crash': false,
