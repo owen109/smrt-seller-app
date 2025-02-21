@@ -204,6 +204,7 @@ function setupIpcHandlers(automationManager: ReturnType<typeof createAutomationM
       // Only proceed with test print if we're actually testing
       if (settings.copies) {
         // Create a test label
+        console.log('\nGenerating test label...');
         const testLabelPath = await generateLabel({
           fnsku: 'X00000000',
           sku: 'TEST-SKU',
@@ -213,6 +214,8 @@ function setupIpcHandlers(automationManager: ReturnType<typeof createAutomationM
         });
 
         console.log('Test label generated at:', testLabelPath);
+        console.log('Absolute path:', path.resolve(testLabelPath));
+        console.log('File exists:', fs.existsSync(testLabelPath) ? 'Yes' : 'No');
 
         // Using lp with specific options for rotation and sizing
         const mediaSize = getMediaSize(settings.labelSize);

@@ -93,7 +93,7 @@ export async function generateLabel({
         doc.setFont('Helvetica', 'normal');
         
         // Calculate text positions with proper spacing
-        const textStartY = dimensions.height * 0.75;  // Moved up slightly
+        const textStartY = dimensions.height * 0.70;  // Moved up slightly
         const lineHeight = 2;  // Reduced line height
 
         // Function to add text with proper spacing

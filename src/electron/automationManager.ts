@@ -798,9 +798,14 @@ class AutomationManager {
 
     private async startReauthentication(popup: BrowserWindow) {
         try {
-            // Launch visible browser for login
+            // Get Firefox path using the same method as initial setup
+            const firefoxPath = this.getFirefoxPath();
+            console.log('Using Firefox path for reauth:', firefoxPath);
+
+            // Launch visible browser for login with the correct Firefox path
             this.authBrowser = await firefox.launch({
                 headless: false,
+                executablePath: firefoxPath,
                 firefoxUserPrefs: {
                     'browser.sessionstore.resume_from_crash': false,
                     'browser.sessionstore.max_resumed_crashes': 0
@@ -1434,6 +1439,26 @@ class AutomationManager {
             // Handle prep steps
             console.log('Handling prep steps...');
             await page.getByTestId('sku-action-info-prep-missing-link').locator('a').click();    
+            await page.waitForTimeout(200);
+
+            // Check for prep dropdown using data-testid
+            console.log('Checking for prep dropdown...');
+            const prepDropdown = page.getByTestId('prep-guidance-prep-category-dropdown');
+            const isDropdownVisible = await prepDropdown.isVisible();
+            
+            if (isDropdownVisible) {
+                console.log('Found prep dropdown, clicking it...');
+                await prepDropdown.click();
+                await page.waitForTimeout(500);
+                
+                // Click "No Prep Needed" option using the value
+                const noPrepOption = page.locator('kat-option[value="NONE"]');
+                await noPrepOption.click();
+                await page.waitForTimeout(300);
+            } else {
+                console.log('No prep dropdown found, continuing with save...');
+            }
+
             // Wait for first Save button to be visible and clickable
             await page.getByRole('button', { name: 'Save' }).waitFor({ state: 'visible' });
             await page.getByRole('button', { name: 'Save' }).click();
@@ -1707,10 +1732,6 @@ class AutomationManager {
 
                 // Click the additional save buttons twice
                 const saveButton = page.getByRole('button', { name: 'Save' });
-                await saveButton.waitFor({ state: 'visible' });
-                await saveButton.click();
-                await page.waitForTimeout(1000);
-
                 await saveButton.waitFor({ state: 'visible' });
                 await saveButton.click();
             } else {
