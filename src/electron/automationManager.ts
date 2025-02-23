@@ -1825,13 +1825,19 @@ class AutomationManager {
                 sku: params.sku!,
                 asin: params.asin!,
                 condition: params.condition,
-                labelSize: this.printSettings?.labelSize || 'STANDARD' // Use configured size or default to STANDARD
+                labelSize: this.printSettings?.labelSize || 'STANDARD', // Use configured size or default to STANDARD
+                customSize: this.printSettings?.customSize // Pass through custom size if set
             });
 
             log.info('Using PDF path:', labelPath);
 
+            // Get the media size based on current settings
+            const mediaSize = this.printSettings?.labelSize === 'CUSTOM' && this.printSettings?.customSize
+                ? `Custom.${this.printSettings.customSize.height}x${this.printSettings.customSize.width}in`
+                : 'Custom.1x2.125in';
+
             // Using lp with specific options for rotation and sizing
-            const command = `lp -d "${this.printerName}" -o landscape -o orientation-requested=6 -o scaling=100 -o media=Custom.1x2.125in "${labelPath}"`;
+            const command = `lp -d "${this.printerName}" -o landscape -o orientation-requested=6 -o scaling=100 -o media=${mediaSize} "${labelPath}"`;
             
             log.info('Sending print job with command:', command);
             

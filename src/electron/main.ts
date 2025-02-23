@@ -6,19 +6,25 @@ import { getPreloadPath, getUIPath, getAssetPath } from './pathResolver.js';
 import { createTray } from './tray.js';
 import { createMenu } from './menu.js';
 import { createAutomationManager } from './automationManager.js';
-import { generateLabel, LABEL_SIZES } from './labelGenerator.js';
+import { generateLabel, LABEL_SIZES, LabelGenerationError } from './labelGenerator.js';
 import { print, isPrintComplete } from 'unix-print';
 import path from 'path';
 import fs from 'fs';
 import { PrintManager } from './PrintManager.js';
 import { execPromise } from './util.js';
+import printerPkg from 'pdf-to-printer';
+const { print: windowsPrint } = printerPkg;
 // Commenting out Clerk for now
 // import { Clerk } from '@clerk/clerk-sdk-node';
 // const CLERK_SECRET_KEY = process.env.CLERK_SECRET_KEY;
 // const clerk = new Clerk({ secretKey: CLERK_SECRET_KEY });
 
 // Helper function to get media size based on label size
-function getMediaSize(labelSize: LabelSize): string {
+function getMediaSize(labelSize: LabelSize, customSize?: CustomLabelSize): string {
+  if (labelSize === 'CUSTOM' && customSize) {
+    return `Custom.${customSize.height}x${customSize.width}in`;
+  }
+
   switch (labelSize) {
     case 'SMALL':
       return 'Custom.1x2.125in';
@@ -197,7 +203,7 @@ function setupIpcHandlers(automationManager: ReturnType<typeof createAutomationM
       console.log('Verified automation manager settings:', {
         printer: verifySettings.printer,
         labelSize: verifySettings.labelSize,
-        mediaSize: getMediaSize(verifySettings.labelSize),
+        mediaSize: getMediaSize(verifySettings.labelSize, verifySettings.customSize),
         dimensions: LABEL_SIZES[verifySettings.labelSize]
       });
 
@@ -210,7 +216,8 @@ function setupIpcHandlers(automationManager: ReturnType<typeof createAutomationM
           sku: 'TEST-SKU',
           asin: 'TEST-ASIN',
           condition: 'Test Print',
-          labelSize: settings.labelSize
+          labelSize: settings.labelSize,
+          customSize: settings.customSize
         });
 
         console.log('Test label generated at:', testLabelPath);
@@ -218,7 +225,7 @@ function setupIpcHandlers(automationManager: ReturnType<typeof createAutomationM
         console.log('File exists:', fs.existsSync(testLabelPath) ? 'Yes' : 'No');
 
         // Using lp with specific options for rotation and sizing
-        const mediaSize = getMediaSize(settings.labelSize);
+        const mediaSize = getMediaSize(settings.labelSize, settings.customSize);
         const command = `lp -d "${settings.printer}" -n ${settings.copies || 1} -o landscape -o orientation-requested=6 -o scaling=100 -o media=${mediaSize} "${testLabelPath}"`;
         
         console.log('Print Command:', command);
@@ -243,6 +250,20 @@ function setupIpcHandlers(automationManager: ReturnType<typeof createAutomationM
       return false;
     }
   });
+}
+
+// Error handling utility with proper imports
+function getErrorMessage(error: unknown): string {
+    if (error instanceof LabelGenerationError) {
+        return error.message;
+    }
+    if (error instanceof Error) {
+        return error.message;
+    }
+    if (typeof error === 'string') {
+        return error;
+    }
+    return 'An unknown error occurred';
 }
 
 function setupHttpServer(automationManager: ReturnType<typeof createAutomationManager>) {
@@ -290,7 +311,7 @@ function setupHttpServer(automationManager: ReturnType<typeof createAutomationMa
 
       // Get current print settings
       const printSettings = automationManager.getPrintSettings();
-      const mediaSize = getMediaSize(printSettings.labelSize);
+      const mediaSize = getMediaSize(printSettings.labelSize, printSettings.customSize);
       console.log('Print Settings:', {
         printer: automationManager.getPrinterName(),
         labelSize: printSettings.labelSize,
@@ -299,46 +320,71 @@ function setupHttpServer(automationManager: ReturnType<typeof createAutomationMa
         dimensions: LABEL_SIZES[printSettings.labelSize]
       });
 
-      // Generate and print the label
+      // Generate the label
       const labelPath = await generateLabel({
         fnsku,
         sku,
         asin,
         title,
         condition,
-        labelSize: printSettings.labelSize
+        labelSize: printSettings.labelSize,
+        customSize: printSettings.customSize
       });
 
       console.log('Label generated at:', labelPath);
 
-      // Using lp with specific options for rotation and sizing
-      const command = `lp -d "${automationManager.getPrinterName()}" -o landscape -o orientation-requested=6 -o scaling=100 -o media=${mediaSize} "${labelPath}"`;
-      
-      console.log('Print Command:', command);
-      
-      // Execute the command for each copy
-      for (let i = 1; i <= quantity; i++) {
-        console.log(`\nExecuting print ${i} of ${quantity}`);
-        const { stdout, stderr } = await execPromise(command);
+      // Platform-specific printing
+      if (process.platform === 'win32') {
+        // Windows printing using pdf-to-printer
+        console.log('Using Windows printing system');
         
-        if (stderr) {
-          console.error(`Print error on copy ${i}:`, stderr);
-          console.log('=== End Print Label Request (Failed) ===\n');
-          return res.status(200).json({ success: false });
+        const options = {
+          printer: automationManager.getPrinterName(),
+          paperSize: mediaSize,
+          scale: "fit",
+          orientation: "landscape",
+          copies: quantity
+        };
+
+        console.log('Windows print options:', options);
+        
+        await windowsPrint(labelPath, options);
+        console.log('Windows print job completed successfully');
+        
+      } else {
+        // Unix-like systems (Mac/Linux) using lp command
+        console.log('Using Unix printing system');
+        
+        const command = `lp -d "${automationManager.getPrinterName()}" -o landscape -o orientation-requested=6 -o scaling=100 -o media=${mediaSize} "${labelPath}"`;
+        console.log('Unix print command:', command);
+        
+        // Execute the command for each copy
+        for (let i = 1; i <= quantity; i++) {
+          console.log(`\nExecuting print ${i} of ${quantity}`);
+          const { stdout, stderr } = await execPromise(command);
+          
+          if (stderr) {
+            console.error(`Print error on copy ${i}:`, stderr);
+            console.log('=== End Print Label Request (Failed) ===\n');
+            return res.status(200).json({ success: false });
+          }
+          
+          console.log(`Print job ${i} sent successfully!`);
+          console.log('Print job details:', stdout);
         }
-        
-        console.log(`Print job ${i} sent successfully!`);
-        console.log('Print job details:', stdout);
       }
 
       console.log('=== End Print Label Request (Success) ===\n');
       return res.status(200).json({ success: true });
 
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error printing label:', error);
       console.log('=== End Print Label Request (Error) ===\n');
-      // Still return 200 as requested
-      return res.status(200).json({ success: true });
+      // Use our error handling utility
+      return res.status(200).json({ 
+        success: false, 
+        error: getErrorMessage(error)
+      });
     }
   });
 

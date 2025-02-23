@@ -281,3 +281,43 @@
   width: 16px;
   height: 16px;
 }
+
+.custom-size-inputs {
+  display: flex;
+  gap: 1rem;
+  margin-top: 0.5rem;
+  align-items: center;
+}
+
+.size-input-group {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.size-input-group label {
+  font-size: 0.9rem;
+  color: #666;
+  white-space: nowrap;
+}
+
+.size-input {
+  width: 80px;
+  padding: 0.5rem;
+  border: 1px solid #ddd;
+  border-radius: 0.25rem;
+  font-size: 0.9rem;
+  color: #333;
+  -moz-appearance: textfield; /* Firefox */
+}
+
+.size-input::-webkit-outer-spin-button,
+.size-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.size-input:focus {
+  outline: none;
+  border-color: #0495F6;
+}

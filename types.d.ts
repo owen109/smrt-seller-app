@@ -15,7 +15,12 @@ type View = "CPU" | "RAM" | "STORAGE";
 
 type FrameWindowAction = "CLOSE" | "MINIMIZE" | "MAXIMIZE";
 
-type LabelSize = 'STANDARD' | 'SMALL' | 'LARGE';
+type LabelSize = 'STANDARD' | 'SMALL' | 'LARGE' | 'CUSTOM';
+
+type CustomLabelSize = {
+  width: number;  // in inches
+  height: number; // in inches
+};
 
 type AutomationStatus = {
     id: string;
@@ -60,6 +65,7 @@ type PrintSettings = {
     color?: boolean;
     duplex?: boolean;
     labelSize: LabelSize;
+    customSize?: CustomLabelSize;  // Only used when labelSize is 'CUSTOM'
 }
 
 // Update PrintOptions type to match Electron's WebContentsPrintOptions

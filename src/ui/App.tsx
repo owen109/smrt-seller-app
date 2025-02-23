@@ -18,9 +18,11 @@ function App() {
     copies: 1,
     color: false,
     duplex: false,
-    labelSize: 'STANDARD'
+    labelSize: 'STANDARD',
+    customSize: { width: 2.625, height: 1 }  // Default custom size
   });
   const [isPrinterExpanded, setIsPrinterExpanded] = useState(false);
+  const [isCustomSize, setIsCustomSize] = useState(false);
 
   useEffect(() => {
     // Get initial setup status
@@ -115,9 +117,17 @@ function App() {
 
   const handleLabelSizeChange = async (newSize: LabelSize) => {
     console.log('Changing label size to:', newSize);
+    const isCustom = newSize === 'CUSTOM';
+    setIsCustomSize(isCustom);
+    
     // First update local state
     setPrintSettings(prev => {
-      const updated = { ...prev, labelSize: newSize };
+      const updated = { 
+        ...prev, 
+        labelSize: newSize,
+        // Keep custom size if switching to custom, otherwise remove it
+        customSize: isCustom ? (prev.customSize || { width: 2.625, height: 1 }) : undefined
+      };
       console.log('Updated print settings:', updated);
       return updated;
     });
@@ -130,6 +140,61 @@ function App() {
         copies: 0 
       });
       console.log('Saved label size:', newSize);
+    } catch (error) {
+      console.error('Failed to update print settings:', error);
+    }
+  };
+
+  const handleCustomSizeChange = async (dimension: 'width' | 'height', value: string) => {
+    const numValue = parseFloat(value);
+    if (isNaN(numValue) || numValue <= 0) return;
+
+    setPrintSettings(prev => {
+      const updated = {
+        ...prev,
+        customSize: {
+          ...prev.customSize!,
+          [dimension]: numValue
+        }
+      };
+      console.log('Updated custom size:', updated);
+      return updated;
+    });
+
+    // Debounced save to avoid too many calls
+    try {
+      await window.electron.testPrint({
+        ...printSettings,
+        customSize: {
+          ...printSettings.customSize!,
+          [dimension]: numValue
+        },
+        copies: 0
+      });
+      console.log('Saved custom size');
+    } catch (error) {
+      console.error('Failed to update custom size:', error);
+    }
+  };
+
+  const handlePrinterChange = async (newPrinter: string) => {
+    console.log('Changing printer to:', newPrinter);
+    // First update local state
+    setSelectedPrinter(newPrinter);
+    setPrintSettings(prev => {
+      const updated = { ...prev, printer: newPrinter };
+      console.log('Updated print settings:', updated);
+      return updated;
+    });
+
+    // Then update server settings with a single call (copies=0 to prevent actual printing)
+    try {
+      await window.electron.testPrint({ 
+        ...printSettings, 
+        printer: newPrinter,
+        copies: 0 
+      });
+      console.log('Saved printer:', newPrinter);
     } catch (error) {
       console.error('Failed to update print settings:', error);
     }
@@ -186,10 +251,7 @@ function App() {
             <span className="printer-label">Printer:</span>
             <select 
               value={selectedPrinter}
-              onChange={(e) => {
-                setSelectedPrinter(e.target.value);
-                setPrintSettings(prev => ({ ...prev, printer: e.target.value }));
-              }}
+              onChange={(e) => handlePrinterChange(e.target.value)}
               className="printer-select"
             >
               {selectedPrinter ? (
@@ -219,7 +281,37 @@ function App() {
               <option value="STANDARD">Standard (2.625" x 1")</option>
               <option value="SMALL">Small (2.125" x 1")</option>
               <option value="LARGE">Large (3" x 2")</option>
+              <option value="CUSTOM">Custom Size</option>
             </select>
+
+            {isCustomSize && (
+              <div className="custom-size-inputs">
+                <div className="size-input-group">
+                  <label>Width (inches):</label>
+                  <input
+                    type="number"
+                    step="0.125"
+                    min="0.5"
+                    max="8.5"
+                    value={printSettings.customSize?.width || ''}
+                    onChange={(e) => handleCustomSizeChange('width', e.target.value)}
+                    className="size-input"
+                  />
+                </div>
+                <div className="size-input-group">
+                  <label>Height (inches):</label>
+                  <input
+                    type="number"
+                    step="0.125"
+                    min="0.5"
+                    max="11"
+                    value={printSettings.customSize?.height || ''}
+                    onChange={(e) => handleCustomSizeChange('height', e.target.value)}
+                    className="size-input"
+                  />
+                </div>
+              </div>
+            )}
 
             <button 
               onClick={handleTestPrint}

@@ -1,8 +1,8 @@
 {
   "printSettings": {
-    "printer": "Brother_QL_710W_5",
+    "printer": "DYMO_LabelWriter_450",
     "labelSize": "SMALL",
-    "copies": 0,
+    "copies": 1,
     "color": false,
     "duplex": false
   }
