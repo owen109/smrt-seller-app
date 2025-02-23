@@ -282,6 +282,7 @@ function setupHttpServer(automationManager: ReturnType<typeof createAutomationMa
   server.get('/ping', (_req, res) => {
     res.status(200).json({ 
       status: 'OK',
+      version: app.getVersion(),  // Get version from Electron app
       timestamp: new Date().toISOString()
     });
   });
