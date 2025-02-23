@@ -104,15 +104,25 @@ function App() {
       return;
     }
     
-    try {
-      const success = await window.electron.testPrint(printSettings);
-      if (!success) {
-        alert('Print failed. Please check printer connection and try again.');
-      }
-    } catch (error) {
-      console.error('Print error:', error);
+    // Fire and forget - don't wait for response
+    fetch('http://localhost:3456/print-label', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        fnsku: 'X00000000',
+        sku: 'TEST-SKU',
+        asin: 'TEST-ASIN',
+        title: 'Test Print',
+        condition: 'Test Print',
+        quantity: 1,
+      })
+    }).catch(err => {
+      // Just log any errors, don't affect the main flow
+      console.error('Print request failed:', err);
       alert('Print failed. Please check printer connection and try again.');
-    }
+    });
   };
 
   const handleLabelSizeChange = async (newSize: LabelSize) => {
