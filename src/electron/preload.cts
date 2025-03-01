@@ -19,6 +19,10 @@ electron.contextBridge.exposeInMainWorld('electron', {
         ipcOn('automationStatus', (status) => {
             callback(status);
         }),
+    subscribeActiveAutomationsCount: (callback) =>
+        ipcOn('activeAutomationsCount', (count) => {
+            callback(count);
+        }),
     getSetupStatus: () => ipcInvoke<'getSetupStatus'>('getSetupStatus'),
     startSetup: () => ipcInvoke<'startSetup'>('startSetup'),
     completeSetup: () => ipcInvoke<'completeSetup'>('completeSetup'),

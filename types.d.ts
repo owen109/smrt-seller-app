@@ -110,6 +110,7 @@ type EventPayloadMapping = {
     sendFrameAction: FrameWindowAction;
     startAutomation: string; // Returns automation ID
     automationStatus: AutomationStatus;
+    activeAutomationsCount: number; // Number of active automations
     getSetupStatus: SetupStatus;
     startSetup: string; // Returns automation ID
     completeSetup: void;
@@ -130,6 +131,7 @@ interface Window {
         sendFrameAction: (payload: FrameWindowAction) => void;
         startAutomation: (request: AutomationRequest) => Promise<string>;
         subscribeAutomationStatus: (callback: (status: AutomationStatus) => void) => UnsubscribeFunction;
+        subscribeActiveAutomationsCount: (callback: (count: number) => void) => UnsubscribeFunction;
         getSetupStatus: () => Promise<SetupStatus>;
         startSetup: () => Promise<string>;
         completeSetup: () => Promise<void>;

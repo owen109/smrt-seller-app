@@ -198,6 +198,22 @@
   line-height: 1.2;
 }
 
+.active-automations-counter {
+  background-color: #f8f8f8;
+  border-radius: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  margin-bottom: 0.75rem;
+  border: 1px solid #eee;
+  font-size: 0.9rem;
+  color: #333;
+  text-align: center;
+}
+
+.active-automations-counter strong {
+  color: #0495F6;
+  font-weight: 600;
+}
+
 .printer-settings {
   width: 100%;
   max-width: 600px;

@@ -408,9 +408,37 @@ function setupHttpServer(automationManager: ReturnType<typeof createAutomationMa
       const id = await automationManager.startAutomation(request);
       console.log('Received automation ID:', id);
 
-      // Get the result immediately after automation completes
+      // Add a timeout for waiting for the result
+      const MAX_WAIT_TIME = 300000; // 5 minutes
+      const POLL_INTERVAL = 2000; // 2 seconds
+      const startTime = Date.now();
+      
+      // Function to poll for results with exponential backoff
+      const getResultWithRetry = async (): Promise<any> => {
+        let attempts = 0;
+        const maxAttempts = 10;
+        
+        while (attempts < maxAttempts && (Date.now() - startTime) < MAX_WAIT_TIME) {
+          console.log(`Attempt ${attempts + 1} to get result for automation ID: ${id}`);
+          const result = await automationManager.getAutomationResult(id);
+          
+          if (result) {
+            return result;
+          }
+          
+          // Exponential backoff with jitter
+          const delay = Math.min(POLL_INTERVAL * Math.pow(1.5, attempts), 10000) + Math.random() * 1000;
+          console.log(`No result yet, waiting ${Math.round(delay)}ms before retry...`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+          attempts++;
+        }
+        
+        throw new Error(`Timed out waiting for automation result after ${maxAttempts} attempts`);
+      };
+      
+      // Get the result with retry logic
       console.log('Getting automation result for ID:', id);
-      const finalResult = await automationManager.getAutomationResult(id);
+      const finalResult = await getResultWithRetry();
       console.log('Raw automation result:', finalResult);
       
       if (!finalResult) {
@@ -428,7 +456,7 @@ function setupHttpServer(automationManager: ReturnType<typeof createAutomationMa
       console.log('FNSKU:', finalResult.fnsku);
       console.log('Sending successful response');
       
-      // Send response immediately with FNSKU
+      // Send response with FNSKU
       return res.json({ 
         success: true,
         id, 

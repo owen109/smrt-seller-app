@@ -105,6 +105,9 @@ class AutomationManager {
         this.initializeDirectories();
         this.loadSettings();
         this.initializePrinter();
+
+        // Send initial active count
+        this.updateActiveAutomationCount();
     }
 
     private async initializeDirectories() {
@@ -410,21 +413,49 @@ class AutomationManager {
                     clearTimeout(automation.timeoutId);
                 }
 
+                // Make sure we've stored the result before closing the browser
+                if (automation.result && !this.completedResults.has(id)) {
+                    log.info('Storing result before cleanup', { id, result: automation.result });
+                    this.completedResults.set(id, automation.result);
+                }
+
+                // Check if browser is still connected
                 if (!automation.browser.isConnected()) {
                     log.info('Browser already disconnected', { id });
                     this.runningAutomations.delete(id);
+                    this.updateActiveAutomationCount();
                     return;
                 }
                 
-                // Close browser immediately - this will automatically close all pages and contexts
-                await automation.browser.close()
-                    .catch(e => log.error('Error closing browser:', e));
+                // Close browser with retry logic
+                let retries = 3;
+                while (retries > 0) {
+                    try {
+                        await automation.browser.close();
+                        log.info('Successfully closed browser', { id });
+                        break;
+                    } catch (e) {
+                        retries--;
+                        if (retries === 0) {
+                            log.error('Failed to close browser after multiple attempts:', e);
+                        } else {
+                            log.info(`Error closing browser, retrying (${retries} attempts left):`, e);
+                            await new Promise(resolve => setTimeout(resolve, 500));
+                        }
+                    }
+                }
                 
                 log.info('Successfully cleaned up automation', { id });
             } catch (error) {
                 log.error('Error during cleanup:', error);
+                // Even if cleanup fails, make sure we store the result
+                if (automation.result && !this.completedResults.has(id)) {
+                    log.info('Storing result after cleanup error', { id, result: automation.result });
+                    this.completedResults.set(id, automation.result);
+                }
             } finally {
                 this.runningAutomations.delete(id);
+                this.updateActiveAutomationCount();
             }
         }
     }
@@ -1023,6 +1054,7 @@ class AutomationManager {
         try {
             const automation = await this.createAutomation(id, request);
             this.runningAutomations.set(id, automation);
+            this.updateActiveAutomationCount();
             
             // Set up timeout
             this.setupAutomationTimeout(automation);
@@ -1983,6 +2015,13 @@ class AutomationManager {
         } catch (error) {
             log.error('Failed to load settings:', error);
         }
+    }
+
+    // Add a method to update active automation count
+    private updateActiveAutomationCount() {
+        const activeCount = this.runningAutomations.size;
+        ipcWebContentsSend('activeAutomationsCount', this.mainWindow.webContents, activeCount);
+        log.info('Updated active automation count', { activeCount });
     }
 }
 

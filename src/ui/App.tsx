@@ -11,6 +11,7 @@ function App() {
   const [isSettingUp, setIsSettingUp] = useState(false);
   const [currentSetupId, setCurrentSetupId] = useState<string | null>(null);
   const [automations, setAutomations] = useState<AutomationDisplay>({});
+  const [activeCount, setActiveCount] = useState<number>(0);
   const [printers, setPrinters] = useState<PrinterInfo[]>([]);
   const [selectedPrinter, setSelectedPrinter] = useState<string>('');
   const [printSettings, setPrintSettings] = useState<PrintSettings>({
@@ -29,7 +30,7 @@ function App() {
     window.electron.getSetupStatus().then(setSetupStatus);
 
     // Subscribe to automation status updates
-    const unsubscribe = window.electron.subscribeAutomationStatus((status) => {
+    const unsubscribeStatus = window.electron.subscribeAutomationStatus((status) => {
       setAutomations(prev => {
         if (status.status === 'completed' || status.status === 'error') {
           // Remove completed/errored automations after 5 seconds
@@ -50,6 +51,11 @@ function App() {
       }
     });
 
+    // Subscribe to active automation count updates
+    const unsubscribeCount = window.electron.subscribeActiveAutomationsCount((count) => {
+      setActiveCount(count);
+    });
+
     // Load available printers
     window.electron.getPrinters().then(printers => {
       setPrinters(printers);
@@ -64,7 +70,10 @@ function App() {
       }
     });
 
-    return () => unsubscribe();
+    return () => {
+      unsubscribeStatus();
+      unsubscribeCount();
+    };
   }, []);
 
   const handleStartSetup = async () => {
@@ -338,6 +347,11 @@ function App() {
 
         {/* Automation Status Display */}
         <div className="automation-list">
+          {activeCount > 0 && (
+            <div className="active-automations-counter">
+              <span>Active Automations: <strong>{activeCount}</strong></span>
+            </div>
+          )}
           {Object.entries(automations).map(([id, status]) => {
             const displayId = status.details?.sku && status.details?.asin 
               ? `${status.details.sku} (${status.details.asin})`
