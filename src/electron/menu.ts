@@ -16,13 +16,13 @@ export function createMenu(mainWindow: BrowserWindow){
                     app.quit();
                 }
             },
-            {
+           /* {
                 label: 'DevTools',
                 click: () => {
                     mainWindow.webContents.openDevTools();
                 },
                 visible: true//isDev()
-            }
+            }*/
 
         ]
     },

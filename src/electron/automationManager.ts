@@ -1150,7 +1150,7 @@ class AutomationManager {
         }
 
         const browser = await firefox.launch({
-            headless: false,
+            headless: true,
             executablePath: firefoxPath,
             firefoxUserPrefs: {
                 'browser.sessionstore.resume_from_crash': false,
@@ -1543,8 +1543,34 @@ class AutomationManager {
 
             // Handle prep steps
             console.log('Handling prep steps...');
-            await page.getByTestId('sku-action-info-prep-missing-link').locator('a').click();    
-            await page.waitForTimeout(200);
+            await Promise.race([
+                // Option 1: "sku-action-info-prep-missing-link" on page
+                page.getByTestId('sku-action-info-prep-missing-link').locator('a')
+                  .waitFor({ state: 'visible', timeout: 10000 })
+                  .then(async () => {
+                    console.log('Found and clicking: sku-action-info-prep-missing-link');
+                    await page.getByTestId('sku-action-info-prep-missing-link').locator('a').click();
+                  }),
+                  
+                // Option 2: "Prep information updated" link on page2
+                page.getByRole('link', { name: 'Prep information updated' })
+                  .waitFor({ state: 'visible', timeout: 10000 })
+                  .then(async () => {
+                    console.log('Found and clicking: Prep information updated link');
+                    await page.getByRole('link', { name: 'Prep information updated' }).click();
+                  }),
+                  
+                // Option 3: "prep-modal-link" on page2
+                page.getByTestId('prep-modal-link').locator('a')
+                  .waitFor({ state: 'visible', timeout: 10000 })
+                  .then(async () => {
+                    console.log('Found and clicking: prep-modal-link');
+                    await page.getByTestId('prep-modal-link').locator('a').click();
+                  })
+                    
+              ]).catch(error => {
+                console.error('None of the elements appeared within the timeout:', error);
+              });
 
             // Check for prep dropdown using data-testid
             console.log('Checking for prep dropdown...');
