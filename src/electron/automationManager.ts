@@ -1150,7 +1150,7 @@ class AutomationManager {
         }
 
         const browser = await firefox.launch({
-            headless: true,
+            headless: false,
             executablePath: firefoxPath,
             firefoxUserPrefs: {
                 'browser.sessionstore.resume_from_crash': false,
@@ -1502,10 +1502,30 @@ class AutomationManager {
 
             // Submit the listing
             await page.getByRole('button', { name: 'Save and finish' }).click();
-      
-            // Wait for the Convert button to be clickable
+
+            
             await page.getByTestId('button-label-for-SC_FBA_LFBA_1_PAGE_LIST_AS_FBA_BUTTON_CONVERTANDSEND').waitFor({ state: 'visible' });
-            await page.getByTestId('button-label-for-SC_FBA_LFBA_1_PAGE_LIST_AS_FBA_BUTTON_CONVERTANDSEND').click();
+
+            // Add delay and check for the popup before clicking Convert and Send
+            console.log('Checking for popup before Convert and Send...');
+            await page.waitForTimeout(200); // Wait 1 second
+            
+            // Check if popup button exists
+            const popupExists = await page.getByTestId('dgq-button-link').isVisible().catch(() => false);
+            if (popupExists) {
+                console.log('Popup detected, handling popup...');
+                await page.getByTestId('dgq-button-link').click();
+                await page.getByTestId('dgq-button-link').locator('a').click();
+                
+                // Handle the options in the popup
+                await page.locator('kat-radiobutton:nth-child(2) > .kat-radiobutton-icon').first().click();
+                await page.locator('kat-radiobutton:nth-child(2) > .kat-radiobutton-icon').nth(1).click();
+                await page.getByRole('button', { name: 'Submit' }).click();
+                await page.getByTestId('button-label-for-SC_FBA_LFBA_1_PAGE_LIST_AS_FBA_BUTTON_CONVERTANDSEND').click();
+            } else {
+                console.log('No popup found, proceeding with Convert and Send...');
+                await page.getByTestId('button-label-for-SC_FBA_LFBA_1_PAGE_LIST_AS_FBA_BUTTON_CONVERTANDSEND').click();
+            }
 
             console.log('Getting FNSKU...');
             const fnskuElement = page.getByTestId('fnsku');

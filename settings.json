@@ -4,6 +4,10 @@
     "labelSize": "SMALL",
     "copies": 1,
     "color": false,
-    "duplex": false
+    "duplex": false,
+    "customSize": {
+      "width": 2.625,
+      "height": 1
+    }
   }
 }
