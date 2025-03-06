@@ -15,9 +15,9 @@ export class LabelGenerationError extends Error {
 
 // Standard label sizes in mm (based on Amazon's specifications)
 export const LABEL_SIZES = {
-    'Dymo 30336 | 1 x 2.125': { width: 54.0, height: 25.4 },     // 2.125" x 1" (minimum)
-    'Dymo 30334 | 2.25 x 1.25': { width: 66.7, height: 31.8 },    // 2.25" x 1.25"
-    'Dymo 30252 | 1 x 3.5': { width: 89.0, height: 25.4 },     // 3.5" x 1"
+    '1 x 2.125': { width: 54.0, height: 25.4 },     // 2.125" x 1" (minimum)
+    '2.25 x 1.25': { width: 66.7, height: 31.8 },    // 2.25" x 1.25"
+    '1 x 3.5': { width: 89.0, height: 25.4 },     // 3.5" x 1"
     'CUSTOM': { width: 66.7, height: 25.4 }                       // Default custom size, will be overridden
 } as const;
 
@@ -80,7 +80,7 @@ export async function generateLabel({
     asin,
     title = '',
     condition = '',
-    labelSize = 'Dymo 30336 | 1 x 2.125',
+    labelSize = '1 x 2.125',
     customSize
 }: LabelData): Promise<string> {
     try {
@@ -92,8 +92,8 @@ export async function generateLabel({
         if (labelSize === 'CUSTOM' && customSize) {
             // Convert inches to mm (1 inch = 25.4 mm)
             dimensions = {
-                width: customSize.width * 25.4,
-                height: customSize.height * 25.4
+                width: customSize.height * 25.4,
+                height: customSize.width * 25.4
             };
             console.log('Using custom dimensions:', dimensions);
         } else {

@@ -15,7 +15,7 @@ type View = "CPU" | "RAM" | "STORAGE";
 
 type FrameWindowAction = "CLOSE" | "MINIMIZE" | "MAXIMIZE";
 
-type LabelSize = 'Dymo 30336 | 1 x 2.125' | 'Dymo 30334 | 2.25 x 1.25' | 'Dymo 30252 | 1 x 3.5' | 'CUSTOM';
+type LabelSize = '1 x 2.125' | '2.25 x 1.25' | '1 x 3.5' | 'CUSTOM';
 
 
 type CustomLabelSize = {
@@ -67,6 +67,7 @@ type PrintSettings = {
     duplex?: boolean;
     labelSize: LabelSize;
     customSize?: CustomLabelSize;  // Only used when labelSize is 'CUSTOM'
+    orientation?: 'portrait' | 'landscape';  // New property for print orientation
 }
 
 // Update PrintOptions type to match Electron's WebContentsPrintOptions

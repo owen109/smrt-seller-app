@@ -33,7 +33,7 @@ export class PrintManager {
             console.log('Quantity:', quantity);
 
             // Base command without -n parameter
-            const command = `lp -d "${printerName}" -o landscape -o orientation-requested=6 -o scaling=100 -o media=Custom.1x2.125in "${pdfPath}"`;
+            const command = `lp -d "${printerName}" -o landscape -o orientation-requested=5 -o scaling=100 -o media=Custom.1x2.125in "${pdfPath}"`;
             
             console.log('Print Command (will execute', quantity, 'times):', command);
             

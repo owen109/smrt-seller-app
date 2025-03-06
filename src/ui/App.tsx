@@ -19,8 +19,9 @@ function App() {
     copies: 1,
     color: false,
     duplex: false,
-    labelSize: 'Dymo 30336 | 1 x 2.125',
-    customSize: { width: 2.625, height: 1 }  // Default custom size
+    labelSize: '1 x 2.125',
+    customSize: { width: 2.625, height: 1 },  // Default custom size
+    orientation: 'portrait'  // Default orientation
   });
   const [isPrinterExpanded, setIsPrinterExpanded] = useState(false);
   const [isCustomSize, setIsCustomSize] = useState(false);
@@ -165,34 +166,62 @@ function App() {
   };
 
   const handleCustomSizeChange = async (dimension: 'width' | 'height', value: string) => {
-    const numValue = parseFloat(value);
-    if (isNaN(numValue) || numValue <= 0) return;
+    // Only allow numbers, decimal points, and empty strings
+    // Remove any non-numeric characters except decimal point
+    const sanitizedValue = value.replace(/[^\d.]/g, '');
+    
+    // Ensure only one decimal point
+    const parts = sanitizedValue.split('.');
+    const cleanValue = parts.length > 2 ? `${parts[0]}.${parts.slice(1).join('')}` : sanitizedValue;
 
+    // Allow empty string, single decimal point, or partial decimal numbers during editing
+    if (cleanValue === '' || cleanValue === '.' || cleanValue.endsWith('.')) {
+      setPrintSettings(prev => ({
+        ...prev,
+        customSize: {
+          ...prev.customSize!,
+          [dimension]: cleanValue
+        }
+      }));
+      return;
+    }
+
+    // Parse and validate the number
+    const numValue = parseFloat(cleanValue);
+    if (isNaN(numValue)) return;
+
+    // Only enforce max limit during typing, min limit will be enforced on blur
+    const max = dimension === 'width' ? 8.5 : 11;
+    const clampedValue = Math.min(max, numValue);
+
+    // Update local state
     setPrintSettings(prev => {
       const updated = {
         ...prev,
         customSize: {
           ...prev.customSize!,
-          [dimension]: numValue
+          [dimension]: clampedValue
         }
       };
       console.log('Updated custom size:', updated);
       return updated;
     });
 
-    // Debounced save to avoid too many calls
-    try {
-      await window.electron.testPrint({
-        ...printSettings,
-        customSize: {
-          ...printSettings.customSize!,
-          [dimension]: numValue
-        },
-        copies: 0
-      });
-      console.log('Saved custom size');
-    } catch (error) {
-      console.error('Failed to update custom size:', error);
+    // Only save to server if value is valid (above minimum)
+    if (clampedValue >= 0.5) {
+      try {
+        await window.electron.testPrint({
+          ...printSettings,
+          customSize: {
+            ...printSettings.customSize!,
+            [dimension]: clampedValue
+          },
+          copies: 0
+        });
+        console.log('Saved custom size');
+      } catch (error) {
+        console.error('Failed to update custom size:', error);
+      }
     }
   };
 
@@ -214,6 +243,29 @@ function App() {
         copies: 0 
       });
       console.log('Saved printer:', newPrinter);
+    } catch (error) {
+      console.error('Failed to update print settings:', error);
+    }
+  };
+
+  const handleOrientationChange = async (newOrientation: 'portrait' | 'landscape') => {
+    console.log('Changing orientation to:', newOrientation);
+    
+    // First update local state
+    setPrintSettings(prev => {
+      const updated = { ...prev, orientation: newOrientation };
+      console.log('Updated print settings:', updated);
+      return updated;
+    });
+
+    // Then update server settings with a single call (copies=0 to prevent actual printing)
+    try {
+      await window.electron.testPrint({ 
+        ...printSettings, 
+        orientation: newOrientation,
+        copies: 0 
+      });
+      console.log('Saved orientation:', newOrientation);
     } catch (error) {
       console.error('Failed to update print settings:', error);
     }
@@ -297,9 +349,9 @@ function App() {
               onChange={(e) => handleLabelSizeChange(e.target.value as LabelSize)}
               className="size-select"
             >
-              <option value="Dymo 30336 | 1 x 2.125">Dymo 30336 | 1 x 2.125</option>
-              <option value="Dymo 30334 | 2.25 x 1.25">Dymo 30334 | 2.25 x 1.25</option>
-              <option value="Dymo 30252 | 1 x 3.5">Dymo 30252 | 1 x 3.5</option>
+              <option value="1 x 2.125">1 x 2.125</option>
+              <option value="2.25 x 1.25">2.25 x 1.25</option>
+              <option value="1 x 3.5">1 x 3.5</option>
               <option value="CUSTOM">Custom Size</option>
             </select>
 
@@ -308,29 +360,59 @@ function App() {
                 <div className="size-input-group">
                   <label>Width (inches):</label>
                   <input
-                    type="number"
+                    type="text"
+                    pattern="[0-9]*[.]?[0-9]*"
+                    inputMode="decimal"
                     step="0.125"
                     min="0.5"
                     max="8.5"
                     value={printSettings.customSize?.width || ''}
                     onChange={(e) => handleCustomSizeChange('width', e.target.value)}
+                    onBlur={(e) => {
+                      const value = parseFloat(e.target.value);
+                      if (isNaN(value) || value < 0.5) {
+                        handleCustomSizeChange('width', '0.5');
+                      }
+                    }}
+                    placeholder="0.5 - 8.5"
                     className="size-input"
                   />
                 </div>
                 <div className="size-input-group">
                   <label>Height (inches):</label>
                   <input
-                    type="number"
+                    type="text"
+                    pattern="[0-9]*[.]?[0-9]*"
+                    inputMode="decimal"
                     step="0.125"
                     min="0.5"
                     max="11"
                     value={printSettings.customSize?.height || ''}
                     onChange={(e) => handleCustomSizeChange('height', e.target.value)}
+                    onBlur={(e) => {
+                      const value = parseFloat(e.target.value);
+                      if (isNaN(value) || value < 0.5) {
+                        handleCustomSizeChange('height', '0.5');
+                      }
+                    }}
+                    placeholder="0.5 - 11"
                     className="size-input"
                   />
                 </div>
               </div>
             )}
+
+            <div className="orientation-control">
+              <span className="printer-label">Orientation:</span>
+              <select
+                value={printSettings.orientation || 'portrait'}
+                onChange={(e) => handleOrientationChange(e.target.value as 'portrait' | 'landscape')}
+                className="size-select"
+              >
+                <option value="portrait">Portrait</option>
+                <option value="landscape">Landscape</option>
+              </select>
+            </div>
 
             <button 
               onClick={handleTestPrint}

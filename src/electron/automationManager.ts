@@ -73,9 +73,10 @@ class AutomationManager {
     private authBrowser: Browser | null = null;
     private printSettings: PrintSettings = {
         printer: '',
-        labelSize: 'Dymo 30336 | 1 x 2.125',
+        labelSize: '1 x 2.125',
         copies: 1,
-        color: false
+        color: false,
+        orientation: 'portrait'  // Add default orientation
     };
 
     constructor(mainWindow: BrowserWindow) {
@@ -1342,7 +1343,7 @@ class AutomationManager {
             log.info('Using PDF path:', pdfPath);
 
             // Using lp with specific options for rotation and sizing
-            const command = `lp -d "${printerName}" -o landscape -o orientation-requested=6 -o scaling=100 -o media=Custom.1x2.125in "${pdfPath}"`;
+            const command = `lp -d "${printerName}" -o landscape -o orientation-requested=5 -o scaling=100 -o media=Custom.1x2.125in "${pdfPath}"`;
             
             log.info('Sending print job with command:', command);
             
@@ -1927,7 +1928,7 @@ class AutomationManager {
                 sku: params.sku!,
                 asin: params.asin!,
                 condition: params.condition,
-                labelSize: this.printSettings?.labelSize || 'Dymo 30336 | 1 x 2.125', // Use configured size or default
+                labelSize: this.printSettings?.labelSize || '1 x 2.125', // Use configured size or default
                 customSize: this.printSettings?.customSize // Pass through custom size if set
             });
 
@@ -1969,7 +1970,7 @@ class AutomationManager {
                 }
             } else {
                 // Unix-like systems (Mac/Linux) using lp command
-                const command = `lp -d "${this.printerName}" -o landscape -o orientation-requested=6 -o scaling=100 -o media=${mediaSize} "${labelPath}"`;
+                const command = `lp -d "${this.printerName}" -o landscape -o orientation-requested=5 -o scaling=100 -o media=${mediaSize} "${labelPath}"`;
                 
                 log.info('Sending print job with command:', command);
                 

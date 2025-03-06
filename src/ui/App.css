@@ -303,18 +303,21 @@
   gap: 1rem;
   margin-top: 0.5rem;
   align-items: center;
+  flex-wrap: wrap;
 }
 
 .size-input-group {
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  min-width: 140px;
 }
 
 .size-input-group label {
   font-size: 0.9rem;
   color: #666;
   white-space: nowrap;
+  user-select: none;
 }
 
 .size-input {
@@ -324,6 +327,8 @@
   border-radius: 0.25rem;
   font-size: 0.9rem;
   color: #333;
+  background-color: #fff;
+  transition: all 0.2s ease;
   -moz-appearance: textfield; /* Firefox */
 }
 
@@ -336,4 +341,30 @@
 .size-input:focus {
   outline: none;
   border-color: #0495F6;
+  box-shadow: 0 0 0 2px rgba(4, 149, 246, 0.1);
+  background-color: #fff;
+}
+
+.size-input:hover {
+  border-color: #bbb;
+}
+
+.size-input::placeholder {
+  color: #999;
+}
+
+/* Ensure consistent background color across platforms */
+.size-input:-webkit-autofill,
+.size-input:-webkit-autofill:hover,
+.size-input:-webkit-autofill:focus {
+  -webkit-text-fill-color: #333;
+  -webkit-box-shadow: 0 0 0px 1000px #fff inset;
+  transition: background-color 5000s ease-in-out 0s;
+}
+
+.orientation-control {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
 }

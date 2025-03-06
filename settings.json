@@ -1,9 +1,10 @@
 {
   "printSettings": {
     "printer": "DYMO_LabelWriter_450",
-    "labelSize": "Dymo 30336 | 1 x 2.125",
+    "labelSize": "1 x 2.125",
     "copies": 1,
     "color": false,
+    "orientation": "portrait",
     "duplex": false
   }
 }
