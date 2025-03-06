@@ -341,9 +341,8 @@ function setupHttpServer(automationManager: ReturnType<typeof createAutomationMa
         
         const options = {
           printer: automationManager.getPrinterName(),
-          paperSize: mediaSize,
-          scale: "fit",
-          orientation: "landscape",
+          scale: "noscale",
+          orientation: "portrait",
           copies: quantity
         };
 
