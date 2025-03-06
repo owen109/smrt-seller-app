@@ -1905,7 +1905,7 @@ class AutomationManager {
         } catch (error) {
             console.error('Error in listing creation:', error);
             if (!page.isClosed()) {
-                await page.screenshot({ path: path.join(this.profilesPath, `error_${Date.now()}.png`) });
+               // await page.screenshot({ path: path.join(this.profilesPath, `error_${Date.now()}.png`) });
             }
             // Set the error in automation.result for tracking
             automation.result = { error: error instanceof Error ? error.message : 'Unknown error occurred' };
