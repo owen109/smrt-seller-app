@@ -1,13 +1,9 @@
 {
   "printSettings": {
     "printer": "DYMO_LabelWriter_450",
-    "labelSize": "SMALL",
+    "labelSize": "Dymo 30336 | 1 x 2.125",
     "copies": 1,
     "color": false,
-    "duplex": false,
-    "customSize": {
-      "width": 2.625,
-      "height": 1
-    }
+    "duplex": false
   }
 }

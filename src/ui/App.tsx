@@ -19,7 +19,7 @@ function App() {
     copies: 1,
     color: false,
     duplex: false,
-    labelSize: 'STANDARD',
+    labelSize: 'Dymo 30336 | 1 x 2.125',
     customSize: { width: 2.625, height: 1 }  // Default custom size
   });
   const [isPrinterExpanded, setIsPrinterExpanded] = useState(false);
@@ -297,9 +297,9 @@ function App() {
               onChange={(e) => handleLabelSizeChange(e.target.value as LabelSize)}
               className="size-select"
             >
-              <option value="STANDARD">Standard (2.625" x 1")</option>
-              <option value="SMALL">Small (2.125" x 1")</option>
-              <option value="LARGE">Large (3" x 2")</option>
+              <option value="Dymo 30336 | 1 x 2.125">Dymo 30336 | 1 x 2.125</option>
+              <option value="Dymo 30334 | 2.25 x 1.25">Dymo 30334 | 2.25 x 1.25</option>
+              <option value="Dymo 30252 | 1 x 3.5">Dymo 30252 | 1 x 3.5</option>
               <option value="CUSTOM">Custom Size</option>
             </select>
 

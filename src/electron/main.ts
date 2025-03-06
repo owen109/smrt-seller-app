@@ -21,22 +21,44 @@ const { print: windowsPrint } = printerPkg;
 
 // Helper function to get media size based on label size
 function getMediaSize(labelSize: LabelSize, customSize?: CustomLabelSize): string {
-  if (labelSize === 'CUSTOM' && customSize) {
-    return `Custom.${customSize.height}x${customSize.width}in`;
-  }
+
+  if (process.platform === 'win32') {
+    if (labelSize === 'CUSTOM' && customSize) {
+      return `Custom.${customSize.height}x${customSize.width}in`;
+    }
 
   switch (labelSize) {
-    case 'SMALL':
-      return 'Custom.1x2.125in';
-    case 'STANDARD':
-      return 'Custom.1x2.625in';
-    case 'LARGE':
-      return 'Custom.2x3in';
+    case 'Dymo 30336 | 1 x 2.125':
+      return '30336 1 in x 2-1/8 in';
+    case 'Dymo 30334 | 2.25 x 1.25':
+      return '30334 2-1/4 in x 1-1/4 in';
+    case 'Dymo 30252 | 1 x 3.5':
+      return '30252 Address';
+    case 'CUSTOM':
+      if (customSize) {
+        return `Custom.${customSize.height}x${customSize.width}in`;
+      }
+      // Fall through to default if no custom size provided
     default:
-      return 'Custom.1x2.625in'; // Default to standard size
+      return '30336 1 in x 2.125 in'; // Default to standard size
+  }
+  }else{
+    if (labelSize === 'CUSTOM' && customSize) {
+      return `Custom.${customSize.height}x${customSize.width}in`;
+    }
+
+  switch (labelSize) {
+    case 'Dymo 30336 | 1 x 2.125':
+      return 'Custom.1x2.125in';
+    case 'Dymo 30334 | 2.25 x 1.25':
+      return 'Custom.2.25x1.25in';
+    case 'Dymo 30252 | 1 x 3.5':
+      return 'Custom.1x3.5in';
+    default:
+        return 'Custom.1x2.625in';
   }
 }
-
+}
 // Utility function for printing with unix-print
 async function printPDFUnix(pdfPath: string, printerName?: string, options: string[] = []): Promise<boolean> {
   try {
@@ -46,6 +68,21 @@ async function printPDFUnix(pdfPath: string, printerName?: string, options: stri
     const command = `lp -d "${printerName}" -o landscape -o orientation-requested=6 -o scaling=100 -o media=Custom.1x2.125in "${pdfPath}"`;
     
     console.log('Sending print job with command:', command);
+    
+    // Log the final print command to the log file
+    const logPath = path.join(app.getPath('userData'), 'logs');
+    const today = new Date().toISOString().split('T')[0];
+    const logFile = path.join(logPath, `automation-${today}.log`);
+    
+    try {
+      const timestamp = new Date().toISOString();
+      const logMessage = `[${timestamp}] INFO: PRINT ENDPOINT - Final printPDFUnix command: ${command}`;
+      console.log(logMessage);
+      await fs.promises.mkdir(logPath, { recursive: true });
+      await fs.promises.appendFile(logFile, logMessage + '\n');
+    } catch (error) {
+      console.error('Failed to write to log file:', error);
+    }
     
     const { stdout, stderr } = await execPromise(command);
     
@@ -341,13 +378,28 @@ function setupHttpServer(automationManager: ReturnType<typeof createAutomationMa
         
         const options = {
           printer: automationManager.getPrinterName(),
-          paperSize: mediaSize,
-          scale: "fit",
-          orientation: "landscape",
-          copies: quantity
+          scale: "noscale",
+         // paperSize: mediaSize,
+          orientation: "portrait",
+          copies: quantity,
         };
 
         console.log('Windows print options:', options);
+        
+        // Log the final print parameters to the log file
+        const logPath = path.join(app.getPath('userData'), 'logs');
+        const today = new Date().toISOString().split('T')[0];
+        const logFile = path.join(logPath, `automation-${today}.log`);
+        
+        try {
+          const timestamp = new Date().toISOString();
+          const logMessage = `[${timestamp}] INFO: PRINT ENDPOINT - Final Windows print parameters: ${JSON.stringify(options)}`;
+          console.log(logMessage);
+          await fs.promises.mkdir(logPath, { recursive: true });
+          await fs.promises.appendFile(logFile, logMessage + '\n');
+        } catch (error) {
+          console.error('Failed to write to log file:', error);
+        }
         
         await windowsPrint(labelPath, options);
         console.log('Windows print job completed successfully');
@@ -358,6 +410,21 @@ function setupHttpServer(automationManager: ReturnType<typeof createAutomationMa
         
         const command = `lp -d "${automationManager.getPrinterName()}" -o landscape -o orientation-requested=6 -o scaling=100 -o media=${mediaSize} "${labelPath}"`;
         console.log('Unix print command:', command);
+        
+        // Log the final print command to the log file
+        const logPath = path.join(app.getPath('userData'), 'logs');
+        const today = new Date().toISOString().split('T')[0];
+        const logFile = path.join(logPath, `automation-${today}.log`);
+        
+        try {
+          const timestamp = new Date().toISOString();
+          const logMessage = `[${timestamp}] INFO: PRINT ENDPOINT - Final Unix print command: ${command}`;
+          console.log(logMessage);
+          await fs.promises.mkdir(logPath, { recursive: true });
+          await fs.promises.appendFile(logFile, logMessage + '\n');
+        } catch (error) {
+          console.error('Failed to write to log file:', error);
+        }
         
         // Execute the command for each copy
         for (let i = 1; i <= quantity; i++) {

@@ -15,13 +15,18 @@ export class LabelGenerationError extends Error {
 
 // Standard label sizes in mm (based on Amazon's specifications)
 export const LABEL_SIZES = {
-    STANDARD: { width: 66.7, height: 25.4 },    // 2.625" x 1" (Amazon standard)
-    SMALL: { width: 54.0, height: 25.4 },       // 2.125" x 1" (minimum)
-    LARGE: { width: 76.2, height: 50.8 },       // 3" x 2" (maximum)
-    CUSTOM: { width: 66.7, height: 25.4 }       // Default custom size, will be overridden
+    'Dymo 30336 | 1 x 2.125': { width: 54.0, height: 25.4 },     // 2.125" x 1" (minimum)
+    'Dymo 30334 | 2.25 x 1.25': { width: 66.7, height: 31.8 },    // 2.25" x 1.25"
+    'Dymo 30252 | 1 x 3.5': { width: 89.0, height: 25.4 },     // 3.5" x 1"
+    'CUSTOM': { width: 66.7, height: 25.4 }                       // Default custom size, will be overridden
 } as const;
 
 export type LabelSize = keyof typeof LABEL_SIZES;
+
+export interface CustomLabelSize {
+  width: number;  // in inches
+  height: number; // in inches
+}
 
 export interface LabelData {
     fnsku: string;
@@ -75,7 +80,7 @@ export async function generateLabel({
     asin,
     title = '',
     condition = '',
-    labelSize = 'STANDARD',
+    labelSize = 'Dymo 30336 | 1 x 2.125',
     customSize
 }: LabelData): Promise<string> {
     try {

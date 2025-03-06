@@ -15,7 +15,8 @@ type View = "CPU" | "RAM" | "STORAGE";
 
 type FrameWindowAction = "CLOSE" | "MINIMIZE" | "MAXIMIZE";
 
-type LabelSize = 'STANDARD' | 'SMALL' | 'LARGE' | 'CUSTOM';
+type LabelSize = 'Dymo 30336 | 1 x 2.125' | 'Dymo 30334 | 2.25 x 1.25' | 'Dymo 30252 | 1 x 3.5' | 'CUSTOM';
+
 
 type CustomLabelSize = {
   width: number;  // in inches

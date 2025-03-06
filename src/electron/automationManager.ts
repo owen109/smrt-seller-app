@@ -73,7 +73,7 @@ class AutomationManager {
     private authBrowser: Browser | null = null;
     private printSettings: PrintSettings = {
         printer: '',
-        labelSize: 'STANDARD',
+        labelSize: 'Dymo 30336 | 1 x 2.125',
         copies: 1,
         color: false
     };
@@ -1927,7 +1927,7 @@ class AutomationManager {
                 sku: params.sku!,
                 asin: params.asin!,
                 condition: params.condition,
-                labelSize: this.printSettings?.labelSize || 'STANDARD', // Use configured size or default to STANDARD
+                labelSize: this.printSettings?.labelSize || 'Dymo 30336 | 1 x 2.125', // Use configured size or default
                 customSize: this.printSettings?.customSize // Pass through custom size if set
             });
 
@@ -1938,23 +1938,57 @@ class AutomationManager {
                 ? `Custom.${this.printSettings.customSize.height}x${this.printSettings.customSize.width}in`
                 : 'Custom.1x2.125in';
 
-            // Using lp with specific options for rotation and sizing
-            const command = `lp -d "${this.printerName}" -o landscape -o orientation-requested=6 -o scaling=100 -o media=${mediaSize} "${labelPath}"`;
-            
-            log.info('Sending print job with command:', command);
-            
-            const { stdout, stderr } = await execPromise(command);
-            
-            if (stderr) {
-                log.error('Print error:', stderr);
-                this.updateAutomationStatus(automation, {
-                    message: 'Warning: Label printing failed, but listing was created successfully.',
-                    progress: 100
-                });
-                return;
+            // Platform-specific printing
+            if (process.platform === 'win32') {
+                // Windows printing using pdf-to-printer
+                const { print: windowsPrint } = require('pdf-to-printer');
+                
+                const options = {
+                    printer: this.printerName,
+                    scale: "noscale",
+                 //   paperSize: mediaSize,
+                    orientation: "portrait",
+                    copies: 1, // Default to 1 copy
+                };
+                
+                log.info('Windows print options:', options);
+                
+                // Add a more distinct log for the print endpoint
+                log.info(`PRINT ENDPOINT - Final Windows print parameters (handleLabelPrinting): ${JSON.stringify(options)}`);
+                
+                try {
+                    await windowsPrint(labelPath, options);
+                    log.info('Windows print job completed successfully');
+                } catch (printError) {
+                    log.error('Windows print error:', printError);
+                    this.updateAutomationStatus(automation, {
+                        message: 'Warning: Label printing failed, but listing was created successfully.',
+                        progress: 100
+                    });
+                    return;
+                }
+            } else {
+                // Unix-like systems (Mac/Linux) using lp command
+                const command = `lp -d "${this.printerName}" -o landscape -o orientation-requested=6 -o scaling=100 -o media=${mediaSize} "${labelPath}"`;
+                
+                log.info('Sending print job with command:', command);
+                
+                // Add a more distinct log for the print endpoint
+                log.info(`PRINT ENDPOINT - Final Unix print command (handleLabelPrinting): ${command}`);
+                
+                const { stdout, stderr } = await execPromise(command);
+                
+                if (stderr) {
+                    log.error('Print error:', stderr);
+                    this.updateAutomationStatus(automation, {
+                        message: 'Warning: Label printing failed, but listing was created successfully.',
+                        progress: 100
+                    });
+                    return;
+                }
+                
+                log.info('Print job sent successfully!', stdout);
             }
-            
-            log.info('Print job sent successfully!', stdout);
 
             this.updateAutomationStatus(automation, {
                 message: `Successfully created listing with FNSKU: ${fnsku}`,
