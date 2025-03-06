@@ -1505,6 +1505,7 @@ class AutomationManager {
 
             
             await page.getByTestId('button-label-for-SC_FBA_LFBA_1_PAGE_LIST_AS_FBA_BUTTON_CONVERTANDSEND').waitFor({ state: 'visible' });
+            
 
             // Add delay and check for the popup before clicking Convert and Send
             console.log('Checking for popup before Convert and Send...');
@@ -1543,34 +1544,57 @@ class AutomationManager {
 
             // Handle prep steps
             console.log('Handling prep steps...');
-            await Promise.race([
-                // Option 1: "sku-action-info-prep-missing-link" on page
-                page.getByTestId('sku-action-info-prep-missing-link').locator('a')
-                  .waitFor({ state: 'visible', timeout: 10000 })
-                  .then(async () => {
-                    console.log('Found and clicking: sku-action-info-prep-missing-link');
+            try {
+                // Use a flag to ensure only one action is taken
+                let actionTaken = false;
+                
+                // Use Promise.race to try different selectors
+                await Promise.race([
+                    // Option 1: "sku-action-info-prep-missing-link" on page
+                    page.getByTestId('sku-action-info-prep-missing-link').locator('a')
+                      .waitFor({ state: 'visible', timeout: 10000 })
+                      .then(async () => {
+                        if (actionTaken) return;
+                        actionTaken = true;
+                        console.log('Found and clicking: sku-action-info-prep-missing-link');
+                        await page.getByTestId('sku-action-info-prep-missing-link').locator('a').click();
+                        await page.waitForTimeout(500);
+                      }),
+                      
+                    // Option 2: "Prep information updated" link on page2
+                    page.getByRole('link', { name: 'Prep information updated' })
+                      .waitFor({ state: 'visible', timeout: 10000 })
+                      .then(async () => {
+                        if (actionTaken) return;
+                        actionTaken = true;
+                        console.log('Found and clicking: Prep information updated link');
+                        await page.getByRole('link', { name: 'Prep information updated' }).click();
+                        await page.waitForTimeout(500);
+                      }),
+                      
+                    // Option 3: "prep-modal-link" on page2
+                    page.getByTestId('prep-modal-link').locator('a')
+                      .waitFor({ state: 'visible', timeout: 10000 })
+                      .then(async () => {
+                        if (actionTaken) return;
+                        actionTaken = true;
+                        console.log('Found and clicking: prep-modal-link');
+                        await page.getByTestId('prep-modal-link').locator('a').click();
+                        await page.waitForTimeout(500);
+                      })
+                ]);
+                
+                // If no action was taken, continue with the direct approach
+                if (!actionTaken) {
                     await page.getByTestId('sku-action-info-prep-missing-link').locator('a').click();
-                  }),
-                  
-                // Option 2: "Prep information updated" link on page2
-                page.getByRole('link', { name: 'Prep information updated' })
-                  .waitFor({ state: 'visible', timeout: 10000 })
-                  .then(async () => {
-                    console.log('Found and clicking: Prep information updated link');
-                    await page.getByRole('link', { name: 'Prep information updated' }).click();
-                  }),
-                  
-                // Option 3: "prep-modal-link" on page2
-                page.getByTestId('prep-modal-link').locator('a')
-                  .waitFor({ state: 'visible', timeout: 10000 })
-                  .then(async () => {
-                    console.log('Found and clicking: prep-modal-link');
-                    await page.getByTestId('prep-modal-link').locator('a').click();
-                  })
-                    
-              ]).catch(error => {
-                console.error('None of the elements appeared within the timeout:', error);
-              });
+                }
+            } catch (error) {
+                console.error('Error handling prep steps:', error);
+                // Fallback to the direct approach if the Promise.race approach fails
+                await page.getByTestId('sku-action-info-prep-missing-link').locator('a').click();
+            }
+
+            await page.waitForTimeout(200);
 
             // Check for prep dropdown using data-testid
             console.log('Checking for prep dropdown...');

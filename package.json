@@ -5,7 +5,7 @@
   "author": "Owen Dorsey",
   "main": "dist-electron/main.js",
   "private": true,
-  "version": "0.0.5",
+  "version": "0.0.6",
   "type": "module",
   "scripts": {
     "dev": "npm-run-all --parallel dev:react dev:electron",
